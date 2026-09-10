@@ -1,6 +1,8 @@
 // Runnable orchestration for the Workflow tool. Plain JavaScript (no TS).
 // Invoke with: Workflow({ scriptPath: "docs/swarm/workflow.js", args: { graph: <contents of graph.json>, branch: "<pr-branch>", startAt?: "<node id>" } })
 //
+// Single developer, single branch: builders commit locally and a publisher pushes only after
+// every verifier passes, so the deploy branch (production) only receives verified commits.
 // Walks the work graph in topological order. ONE builder at a time (single-writer
 // mutex on the working tree). After each build, read-only verifiers run in
 // parallel; any failure sends the node back to the builder with evidence, up to
@@ -79,9 +81,9 @@ ${(n.acceptance || []).map(a => `- ${a}`).join('\n')}
 
 ${evidence ? `PREVIOUS VERIFY ROUND FAILED. Fix exactly these, nothing else:\n${evidence}\n` : ''}
 WHEN DONE
-1. Run: npm run typecheck && npm run lint && npm test && npm run build. All must pass.
+1. Add the tests docs/TESTING.md requires for every acceptance item (unit, contract, request, privacy, e2e as appropriate) and run: npm run test:ci. Run npm run test:e2e if you touched a screen and npm run test:contract if you touched the repository. All must pass.
 2. Update docs/swarm/state.json: set "${n.id}" to {"status":"verifying","commit":"<sha>"}.
-3. Commit everything with subject "${n.id}: ${n.title}" and push to ${branch}.
+3. Commit everything with subject "${n.id}: ${n.title}". Do NOT push; the conductor pushes after verification.
 4. Return a short report: files changed, contracts exported, how each acceptance item was met, anything you could not do and why.`
 
 const verifierPrompt = (n, lens, report) => `You are a READ-ONLY VERIFIER (${lens.id}: ${lens.title}) for work package ${n.id}: ${n.title} on branch ${branch}.
@@ -122,7 +124,11 @@ for (const n of order.slice(startIdx)) {
     const lenses = (graph.verifiers || []).filter(v => !v.only || v.only.includes(n.id))
     const verdicts = (await parallel(lenses.map(l => () => agent(verifierPrompt(n, l, report), { label: `verify:${n.id}:${l.id}`, phase: 'Verify', schema: VERDICT })))).filter(Boolean)
     const failures = verdicts.flatMap((v, i) => v.pass ? [] : v.failures.map(f => `[${lenses[i].id}] ${f}`))
-    if (failures.length === 0) { done = true; results.push({ id: n.id, rounds: round + 1, notes: verdicts.flatMap(v => v.notes || []) }); log(`${n.id} done after ${round + 1} round(s)`) }
+    if (failures.length === 0) {
+      const pub = await agent(`You are the PUBLISHER for ${n.id} on branch ${branch}. All verifiers passed. Run npm run test:ci once more. If green: set "${n.id}" to {"status":"done"} in docs/swarm/state.json, commit with subject "${n.id}: verified", and push to ${branch} (retry the push up to 4 times with backoff on network errors). If red, do not push; return the failing output.`, { label: `publish:${n.id}`, phase: 'Verify' })
+      if (!pub || /not pushed|red|FAIL/i.test(String(pub)) && !/pushed/i.test(String(pub))) { evidence = `Publisher could not push: ${pub}`; continue }
+      done = true; results.push({ id: n.id, rounds: round + 1, notes: verdicts.flatMap(v => v.notes || []) }); log(`${n.id} done and pushed after ${round + 1} round(s)`)
+    }
     else { evidence = failures.join('\n'); log(`${n.id}: ${failures.length} failure(s), sending back to builder`) }
   }
   if (!done) { log(`${n.id} BLOCKED after 3 rounds; stopping so a human can look. Resume with args.startAt="${n.id}".`); return { blocked: n.id, evidence, results } }

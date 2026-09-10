@@ -17,14 +17,14 @@ export function Chip({ children, tone = "neutral" }: { children: ReactNode; tone
 export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
   const initials = name.split(/\s+/).map((s) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
   return (
-    <span aria-hidden className="inline-flex shrink-0 items-center justify-center rounded-full bg-team-soft font-display font-extrabold text-team"
+    <span aria-hidden className="inline-flex shrink-0 items-center justify-center rounded-full bg-team-soft font-display font-extrabold text-link"
       style={{ width: size, height: size, fontSize: size * 0.4 }}>{initials}</span>
   );
 }
 
 export function Button({ href, children, variant = "primary", className = "", ...rest }: { href?: string; children: ReactNode; variant?: "primary" | "secondary" | "ghost"; className?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const base = "tap inline-flex items-center justify-center gap-2 rounded-[var(--radius-card)] px-4 font-display text-base font-bold transition active:scale-[0.98] disabled:opacity-50";
-  const v = { primary: "bg-team text-on-team", secondary: "border border-line bg-surface text-ink", ghost: "text-team" }[variant];
+  const v = { primary: "bg-team text-on-team", secondary: "border border-line bg-surface text-ink", ghost: "text-link" }[variant];
   if (href) return <Link href={href} className={`${base} ${v} ${className}`}>{children}</Link>;
   return <button className={`${base} ${v} ${className}`} {...rest}>{children}</button>;
 }

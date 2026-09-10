@@ -1,9 +1,11 @@
-# Netlify build for the Next.js app. The Next.js runtime is detected
-# automatically; this file pins the basics so the site builds the same
-# way from any branch.
+# Netlify build for the Next.js app. The deploy branch is production, so the
+# checks run BEFORE the build: a failing test keeps the previous deploy live.
 [build]
-  command = "npm run build"
+  command = "npm ci && npm run typecheck && npm run lint && npm test && npm run build"
   publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

@@ -29,18 +29,22 @@ export function defaultPlan(opts: { sportId: string; ageBandId: string; playerCo
   const preferred = opts.focusTags?.length ? skills.filter((a) => a.tags.some((t) => opts.focusTags!.includes(t))) : [];
   const ordered = [...preferred, ...skills.filter((a) => !preferred.includes(a))];
   const blocks: { activityId: string; name: string; minutes: number }[] = [];
-  let remaining = opts.minutes;
-  blocks.push({ activityId: "arrival", name: "Arrival free play (every kid dribbling)", minutes: 6 }); remaining -= 6;
-  const scrimMin = scrimmage ? Math.min(15, Math.max(10, Math.round(opts.minutes * 0.25))) : 0;
-  remaining -= scrimMin + 4; // closing huddle
-  for (const a of ordered) {
-    if (remaining <= 0) break;
+  const ARRIVAL = 6, CLOSING = 4, WATER = 2;
+  const scrimMin = Math.min(15, Math.max(10, Math.round(opts.minutes * 0.25)));
+  let remaining = opts.minutes - ARRIVAL - CLOSING - scrimMin;
+  blocks.push({ activityId: "arrival", name: "Arrival free play (every kid with a ball)", minutes: ARRIVAL });
+  // Round-robin through the library until the skill time is filled; a thin library repeats activities.
+  const skillBlocks: { activityId: string; name: string; minutes: number }[] = [];
+  for (let i = 0; remaining > 0 && ordered.length > 0 && i < 40; i++) {
+    const a = ordered[i % ordered.length];
     const m = Math.min(a.minutes, opts.maxBlockMinutes, remaining);
-    blocks.push({ activityId: a.id, name: a.name, minutes: m });
+    skillBlocks.push({ activityId: a.id, name: i >= ordered.length ? `${a.name} (again)` : a.name, minutes: m });
     remaining -= m;
-    if (blocks.length % 3 === 0 && remaining > 2) { blocks.push({ activityId: "water", name: "Water break", minutes: 2 }); remaining -= 2; }
+    if (skillBlocks.length % 3 === 0 && remaining > WATER + 2) { skillBlocks.push({ activityId: "water", name: "Water break", minutes: WATER }); remaining -= WATER; }
   }
-  if (scrimmage) blocks.push({ activityId: scrimmage.id, name: scrimmage.name, minutes: scrimMin + Math.max(0, remaining) });
-  blocks.push({ activityId: "closing", name: "Closing: cheer, high-fives, 'did every kid smile?'", minutes: 4 });
+  blocks.push(...skillBlocks);
+  const scrimName = scrimmage?.name ?? "Mini game (everyone plays, no score)";
+  blocks.push({ activityId: scrimmage?.id ?? "scrimmage", name: scrimName, minutes: scrimMin + Math.max(0, remaining) });
+  blocks.push({ activityId: "closing", name: "Closing: cheer, high-fives, 'did every kid smile?'", minutes: CLOSING });
   return blocks;
 }

@@ -9,7 +9,12 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "private:env": "node scripts/private-env.mjs"
+    "private:env": "node scripts/private-env.mjs",
+    "test:watch": "vitest",
+    "test:contract": "vitest run --config vitest.contract.config.ts",
+    "test:e2e": "next build && playwright test",
+    "test:ci": "npm run typecheck && npm run lint && npm test && npm run build",
+    "eval": "vitest run --dir evals"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
@@ -20,7 +25,9 @@
     "zod": "^4.6.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@netlify/plugin-nextjs": "^5.15.13",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^22.20.2",
     "@types/react": "^19",

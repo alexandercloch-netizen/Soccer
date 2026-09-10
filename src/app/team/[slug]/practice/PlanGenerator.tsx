@@ -69,7 +69,7 @@ export function PlanGenerator(props: { slug: string; sportTemplateId: string; pl
         <ol className="mt-3 divide-y divide-line">
           {blocks.map((b, i) => (
             <li key={`${b.activityId}-${i}`} className="flex items-center gap-3 py-3">
-              <span className="tabular w-14 shrink-0 font-display text-xl font-extrabold text-team">{b.minutes}′</span>
+              <span className="tabular w-14 shrink-0 font-display text-xl font-extrabold text-link">{b.minutes}′</span>
               <div className="min-w-0 flex-1">
                 <p className="font-display font-bold">{b.name}</p>
                 {byId.get(b.activityId)?.story && <p className="text-sm text-muted">“{byId.get(b.activityId)!.story}”</p>}

@@ -3,20 +3,89 @@
   "decisions": {
     "persistence": "Neon Postgres (Netlify DB) via Drizzle, behind the TeamRepo interface; the JSON file repo stays for local dev, tests, and seeding. Chosen over Netlify Blobs because the identity model (users, sessions, tokens, households, audit) is relational and the PR is meant to be the durable foundation.",
     "identity": "Coaches/admin: email 6-digit code or link (Resend, console fallback in dev) issuing server-side sessions. Parents: signed family links texted by the coach, plus a claim-by-masked-email fallback. No passwords anywhere. Legacy COACH_PASSCODE stays as a shim until both coaches have signed in.",
-    "snack": "Generic Signup slots (role: snack) so volunteer sign-ups come free later; one slot per game; parent claim requires a household session; coach can assign/clear anything."
+    "snack": "Generic Signup slots (role: snack) so volunteer sign-ups come free later; one slot per game; parent claim requires a household session; coach can assign/clear anything.",
+    "branching": "Single developer, single branch: the swarm builds directly on the deploy branch. Every node must leave the site working (its acceptance includes existing pages rendering identically), builders commit locally, and a node is pushed only after its verifiers pass, so production only ever receives verified commits.",
+    "testing": "docs/TESTING.md is binding. Every acceptance item maps to an automated test in the matching layer; the tests verifier fails a node otherwise."
   },
   "verifiers": [
-    { "id": "contracts", "title": "Contracts", "instructions": "Confirm every listed export exists at the stated path with the stated name, is consumed by at least one caller or test, and that predecessors' exports are imported rather than redefined. grep is your friend." },
-    { "id": "tests", "title": "Checks", "instructions": "Run npm run typecheck && npm run lint && npm test && npm run build on the node's commit. Confirm new pure logic has unit tests and each new route handler or server action has at least one request-level test. Fail on any skipped or focused test." },
-    { "id": "security", "title": "Security", "instructions": "Check every new write path for server-side authorization (requireRole / requireHousehold) before any read of private data; zod validation on all inputs; no PII (guardian phone/email, DOB, medical, full child last name) in public routes, public DTOs, client component props, logs, or commits; rate limits where docs/reviews/03-security.md requires them; secrets only from env. Fail with file:line." },
-    { "id": "ux", "title": "Simplicity", "instructions": "Start the app (npm run build && npx next start) and load the node's screens at 400px and 1280px with Playwright (executablePath /opt/pw-browsers/chromium). Check docs/reviews/01-design-ux.md section 4 for the affected audience: tap targets >=48px, undo not confirm dialogs, no developer copy (file paths, env var names) outside Settings, primary action visible without scrolling on phone, works with keyboard focus visible." },
-    { "id": "sport-agnostic", "title": "Reuse", "instructions": "grep the diff for sport-specific branching (soccer, goal, pitch, quarter) in components, actions, or prompts. New behavior must read from SportTemplate. Confirm the tball template still renders every touched screen without errors." }
+    {
+      "id": "contracts",
+      "title": "Contracts",
+      "instructions": "Confirm every listed export exists at the stated path with the stated name, is consumed by at least one caller or test, and that predecessors' exports are imported rather than redefined. grep is your friend."
+    },
+    {
+      "id": "tests",
+      "title": "Checks",
+      "instructions": "Run npm run typecheck && npm run lint && npm test && npm run build on the node's commit. Confirm new pure logic has unit tests and each new route handler or server action has at least one request-level test. Fail on any skipped or focused test."
+    },
+    {
+      "id": "security",
+      "title": "Security",
+      "instructions": "Check every new write path for server-side authorization (requireRole / requireHousehold) before any read of private data; zod validation on all inputs; no PII (guardian phone/email, DOB, medical, full child last name) in public routes, public DTOs, client component props, logs, or commits; rate limits where docs/reviews/03-security.md requires them; secrets only from env. Fail with file:line."
+    },
+    {
+      "id": "ux",
+      "title": "Simplicity",
+      "instructions": "Start the app (npm run build && npx next start) and load the node's screens at 400px and 1280px with Playwright (executablePath /opt/pw-browsers/chromium). Check docs/reviews/01-design-ux.md section 4 for the affected audience: tap targets >=48px, undo not confirm dialogs, no developer copy (file paths, env var names) outside Settings, primary action visible without scrolling on phone, works with keyboard focus visible."
+    },
+    {
+      "id": "sport-agnostic",
+      "title": "Reuse",
+      "instructions": "grep the diff for sport-specific branching (soccer, goal, pitch, quarter) in components, actions, or prompts. New behavior must read from SportTemplate. Confirm the tball template still renders every touched screen without errors."
+    }
   ],
   "nodes": [
     {
-      "id": "WP01", "title": "Database foundation and repository interface", "estimate": 5, "dependsOn": [],
+      "id": "WP00",
+      "title": "Test harness and CI baseline",
+      "estimate": 2,
+      "dependsOn": [],
+      "goal": "Make docs/TESTING.md real before any feature work: factories for both sports, the repository contract suite skeleton, the request-level authorization matrix helper, privacy leak assertions, Playwright golden-journey scaffolding with axe, and CI plus Netlify test-before-build so the single deploy branch can never publish a red build.",
+      "owns": [
+        "tests/**",
+        "vitest.config.ts",
+        "vitest.contract.config.ts",
+        "playwright.config.ts",
+        ".github/**",
+        "netlify.toml",
+        "package.json",
+        "docs/TESTING.md"
+      ],
+      "exports": [
+        "tests/factories.ts: makeTeam({sportTemplateId, players, games, practices}) deterministic fixtures with fake contacts",
+        "tests/contract/repo.contract.ts: describeRepoContract(name, makeRepo) shared suite run by every TeamRepo implementation",
+        "tests/request/authz.ts: withActor(role, teamId) helper that stubs a session for visitor | family | coach | otherCoach | admin, plus expectRefusedFor(action, roles)",
+        "tests/privacy/assertContactFree.ts: assertContactFree(value) shared assertion used by projection and HTML tests",
+        "tests/e2e/*.spec.ts: parent, coach, security, a11y journeys runnable with npm run test:e2e",
+        ".github/workflows/ci.yml and netlify.toml run typecheck, lint, unit, build (Netlify) and additionally Playwright (CI)"
+      ],
+      "acceptance": [
+        "npm test runs in under 5 seconds locally and includes unit, request, and privacy layers.",
+        "npm run test:e2e passes against the fs backend with GOODSPORT_NOW pinned.",
+        "A deliberately failing unit test makes the Netlify build fail (verified once on a branch deploy or by running the netlify.toml command locally).",
+        "CI is green on the current head and uploads Playwright traces on failure.",
+        "grep finds no .skip( or .only( in tests."
+      ]
+    },
+    {
+      "id": "WP01",
+      "title": "Database foundation and repository interface",
+      "estimate": 5,
+      "dependsOn": [
+        "WP00"
+      ],
       "goal": "Replace JSON-in-git as the runtime store with Neon Postgres via Drizzle, behind a TeamRepo interface, without changing any page's behavior. Keep the JSON file repo for local dev and tests, and add an import script that loads data/teams/*.json plus the private overlay (file or PRIVATE_CONTACTS_JSON) into the database.",
-      "owns": ["src/lib/db/**", "src/lib/data/repo.ts", "src/lib/data/getTeam.ts", "src/lib/data/getPublicTeam.ts", "scripts/import-seed.ts", "drizzle.config.ts", "package.json", ".env.example", "netlify.toml"],
+      "owns": [
+        "src/lib/db/**",
+        "src/lib/data/repo.ts",
+        "src/lib/data/getTeam.ts",
+        "src/lib/data/getPublicTeam.ts",
+        "scripts/import-seed.ts",
+        "drizzle.config.ts",
+        "package.json",
+        ".env.example",
+        "netlify.toml"
+      ],
       "exports": [
         "src/lib/db/schema.ts: Drizzle tables orgs, seasons, teams, share_codes, players, households, guardians, player_guardians, events, signups, users, memberships, sessions, tokens, family_sessions, audit_log",
         "src/lib/data/repo.ts: interface TeamRepo { listTeamSlugs; loadTeam(slug, {includePrivate}); loadTeamByShareCode(code); saveEvent; deleteEvent; saveSignup; getSignups(teamId); rotateShareCode; appendAudit }",
@@ -33,9 +102,25 @@
       ]
     },
     {
-      "id": "WP02", "title": "Identity: coach and admin sessions", "estimate": 5, "dependsOn": ["WP01"],
+      "id": "WP02",
+      "title": "Identity: coach and admin sessions",
+      "estimate": 5,
+      "dependsOn": [
+        "WP01"
+      ],
       "goal": "Per-person identity for coaches and admins with no passwords: email code or link sign-in, admin-sent coach invites, server-side revocable sessions, role checks in one helper, and a legacy COACH_PASSCODE shim so the current coaches keep working during migration.",
-      "owns": ["src/lib/auth/**", "src/lib/auth.ts", "src/proxy.ts", "src/app/login/**", "src/app/i/**", "src/app/api/auth/**", "src/app/api/login/**", "src/app/api/logout/**", "src/lib/mail.ts", "src/app/team/[slug]/layout.tsx"],
+      "owns": [
+        "src/lib/auth/**",
+        "src/lib/auth.ts",
+        "src/proxy.ts",
+        "src/app/login/**",
+        "src/app/i/**",
+        "src/app/api/auth/**",
+        "src/app/api/login/**",
+        "src/app/api/logout/**",
+        "src/lib/mail.ts",
+        "src/app/team/[slug]/layout.tsx"
+      ],
       "exports": [
         "src/lib/auth/session.ts: getSession() -> { user, memberships } | null (per-request cached)",
         "src/lib/auth/session.ts: requireRole(teamId, 'coach'|'admin') -> Actor; throws notFound() on failure (no 403, no enumeration)",
@@ -54,9 +139,24 @@
       ]
     },
     {
-      "id": "WP03", "title": "Security hardening baseline", "estimate": 3, "dependsOn": ["WP02"],
+      "id": "WP03",
+      "title": "Security hardening baseline",
+      "estimate": 3,
+      "dependsOn": [
+        "WP02"
+      ],
       "goal": "Close the remaining must-fix items from docs/reviews/03-security.md that are not part of another node: share codes, headers, caching, AI route hardening, public projection allowlist, generic errors.",
-      "owns": ["next.config.ts", "src/lib/ai/**", "prompts/**", "src/app/api/ai/**", "src/lib/data/getPublicTeam.ts", "src/lib/ratelimit.ts", "src/app/t/[code]/layout.tsx", "src/app/team/[slug]/game/[eventId]/page.tsx", "src/app/team/[slug]/messages/**"],
+      "owns": [
+        "next.config.ts",
+        "src/lib/ai/**",
+        "prompts/**",
+        "src/app/api/ai/**",
+        "src/lib/data/getPublicTeam.ts",
+        "src/lib/ratelimit.ts",
+        "src/app/t/[code]/layout.tsx",
+        "src/app/team/[slug]/game/[eventId]/page.tsx",
+        "src/app/team/[slug]/messages/**"
+      ],
       "exports": [
         "src/lib/ratelimit.ts: limit(key, {max, windowMs}) backed by the database (no external service)",
         "next.config.ts: headers() with HSTS, CSP (frame-ancestors 'none', form-action 'self'), Referrer-Policy, X-Content-Type-Options, Permissions-Policy",
@@ -73,9 +173,23 @@
       ]
     },
     {
-      "id": "WP04", "title": "Schedule editing for coaches", "estimate": 5, "dependsOn": ["WP02"],
+      "id": "WP04",
+      "title": "Schedule editing for coaches",
+      "estimate": 5,
+      "dependsOn": [
+        "WP02"
+      ],
       "goal": "Coaches add, edit, move, cancel, and delete practices and games from a phone, with weekly repeat for practices and one-tap rain-date activation. Every change is audited and immediately visible to parents.",
-      "owns": ["src/app/team/[slug]/schedule/**", "src/app/team/[slug]/events/**", "src/actions/events.ts", "src/components/EventSheet.tsx", "src/components/Toast.tsx", "src/components/Sheet.tsx", "src/lib/events/**", "src/lib/types.ts"],
+      "owns": [
+        "src/app/team/[slug]/schedule/**",
+        "src/app/team/[slug]/events/**",
+        "src/actions/events.ts",
+        "src/components/EventSheet.tsx",
+        "src/components/Toast.tsx",
+        "src/components/Sheet.tsx",
+        "src/lib/events/**",
+        "src/lib/types.ts"
+      ],
       "exports": [
         "src/actions/events.ts: createEvent, updateEvent, moveEvent, cancelEvent(undoable), deleteEvent, activateRainDate; all call requireRole then repo, then revalidatePath for /team/[slug] and /t/[code]",
         "src/lib/events/repeat.ts: expandWeekly(template, until) pure and tested",
@@ -95,9 +209,21 @@
       ]
     },
     {
-      "id": "WP05", "title": "Households and family links for parents", "estimate": 4, "dependsOn": ["WP02"],
+      "id": "WP05",
+      "title": "Households and family links for parents",
+      "estimate": 4,
+      "dependsOn": [
+        "WP02"
+      ],
       "goal": "Give each family an identity without an account: a coach-sent family link that sets a household session, plus a claim-by-masked-email fallback. Parents see their own family's details and can act as their household.",
-      "owns": ["src/app/f/**", "src/app/t/[code]/claim/**", "src/app/api/family/**", "src/lib/auth/family.ts", "src/lib/data/getFamilyTeam.ts", "src/app/team/[slug]/roster/**"],
+      "owns": [
+        "src/app/f/**",
+        "src/app/t/[code]/claim/**",
+        "src/app/api/family/**",
+        "src/lib/auth/family.ts",
+        "src/lib/data/getFamilyTeam.ts",
+        "src/app/team/[slug]/roster/**"
+      ],
       "exports": [
         "src/lib/auth/family.ts: getFamilySession(teamId) and requireHousehold(teamId, householdId)",
         "src/lib/data/getFamilyTeam.ts: public projection plus the caller's own household (players' full names, own guardians' contacts)",
@@ -113,9 +239,21 @@
       ]
     },
     {
-      "id": "WP06", "title": "Snack sign-up per game", "estimate": 4, "dependsOn": ["WP04", "WP05"],
+      "id": "WP06",
+      "title": "Snack sign-up per game",
+      "estimate": 4,
+      "dependsOn": [
+        "WP04",
+        "WP05"
+      ],
       "goal": "Parents claim, release, and swap the snack slot for any game from the team page; coaches assign, clear, and see gaps at a glance. Modeled as a generic Signup so volunteer sign-ups come free later.",
-      "owns": ["src/actions/signups.ts", "src/lib/signups/**", "src/app/t/[code]/snacks/**", "src/app/team/[slug]/snacks/**", "src/components/SnackRow.tsx"],
+      "owns": [
+        "src/actions/signups.ts",
+        "src/lib/signups/**",
+        "src/app/t/[code]/snacks/**",
+        "src/app/team/[slug]/snacks/**",
+        "src/components/SnackRow.tsx"
+      ],
       "exports": [
         "src/actions/signups.ts: claimSlot(eventId) [requires household], releaseSlot(eventId) [own household or coach], assignSlot(eventId, householdId) [coach], clearSlot(eventId) [coach]; compare-and-set so two families can't both win",
         "src/lib/signups/slots.ts: ensureSlots(events, signups, template) creates one snack slot per contest event, pure and tested",
@@ -132,9 +270,20 @@
       ]
     },
     {
-      "id": "WP07", "title": "Share the team link", "estimate": 2, "dependsOn": ["WP03"],
+      "id": "WP07",
+      "title": "Share the team link",
+      "estimate": 2,
+      "dependsOn": [
+        "WP03"
+      ],
       "goal": "Coaches and admins can hand parents the team page in one tap: absolute URL, QR code, copy, text, native share, print, and a safe rotate.",
-      "owns": ["src/app/team/[slug]/share/**", "src/components/ShareTeam.tsx", "src/lib/qr.ts", "src/app/team/[slug]/settings/**", "src/app/team/[slug]/more/**"],
+      "owns": [
+        "src/app/team/[slug]/share/**",
+        "src/components/ShareTeam.tsx",
+        "src/lib/qr.ts",
+        "src/app/team/[slug]/settings/**",
+        "src/app/team/[slug]/more/**"
+      ],
       "exports": [
         "src/lib/qr.ts: qrSvg(url, {color}) server-side SVG (qrcode package), no external image host",
         "src/components/ShareTeam.tsx: QR + absolute URL + Copy link / Text it (sms:) / Share (navigator.share when present) / Print",
@@ -148,9 +297,21 @@
       ]
     },
     {
-      "id": "WP08", "title": "Admin setup: seasons, teams, coaches, wizard save", "estimate": 4, "dependsOn": ["WP02", "WP04"],
+      "id": "WP08",
+      "title": "Admin setup: seasons, teams, coaches, wizard save",
+      "estimate": 4,
+      "dependsOn": [
+        "WP02",
+        "WP04"
+      ],
       "goal": "An admin sets up a new season or team in the UI, invites coaches, and the AI Season Setup wizard saves its reviewed output through the repository. Remove every 'edit the JSON file' instruction from the product.",
-      "owns": ["src/app/admin/**", "src/actions/admin.ts", "src/components/SetupWizard.tsx", "src/app/team/new/**", "src/app/team/[slug]/setup/**"],
+      "owns": [
+        "src/app/admin/**",
+        "src/actions/admin.ts",
+        "src/components/SetupWizard.tsx",
+        "src/app/team/new/**",
+        "src/app/team/[slug]/setup/**"
+      ],
       "exports": [
         "src/actions/admin.ts: createSeason, createTeam(from SportTemplate), inviteCoach, removeCoach, archiveTeam; all requireRole('admin')",
         "src/components/SetupWizard.tsx: Save step writes players, households, guardians (private), events, and gear through the repo with a per-row include/exclude toggle"
@@ -164,9 +325,19 @@
       ]
     },
     {
-      "id": "WP09", "title": "Calendar feed and team notice", "estimate": 2, "dependsOn": ["WP04"],
+      "id": "WP09",
+      "title": "Calendar feed and team notice",
+      "estimate": 2,
+      "dependsOn": [
+        "WP04"
+      ],
       "goal": "Parents subscribe to the schedule in their phone calendar and see any coach notice (field closed, bring water) at the top of the team page.",
-      "owns": ["src/app/t/[code]/calendar.ics/**", "src/lib/ics.ts", "src/actions/notice.ts", "src/components/NoticeBanner.tsx"],
+      "owns": [
+        "src/app/t/[code]/calendar.ics/**",
+        "src/lib/ics.ts",
+        "src/actions/notice.ts",
+        "src/components/NoticeBanner.tsx"
+      ],
       "exports": [
         "src/lib/ics.ts: toIcs(events, team) pure and tested (UTC handling for America/Chicago)",
         "GET /t/<code>/calendar.ics with correct content type; per-event 'Add to calendar' link",
@@ -178,9 +349,26 @@
       ]
     },
     {
-      "id": "WP10", "title": "UX polish and accessibility pass", "estimate": 4, "dependsOn": ["WP06", "WP07", "WP08", "WP09"],
+      "id": "WP10",
+      "title": "UX polish and accessibility pass",
+      "estimate": 4,
+      "dependsOn": [
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09"
+      ],
       "goal": "Close the top design findings so the three 'definition of simple' checklists pass: navigation, contrast, tap targets, directions, Game Day one-handed, attendance everywhere, empty states, dark mode, no developer copy.",
-      "owns": ["src/app/globals.css", "src/components/AppShell.tsx", "src/components/ui/**", "src/components/EventRow.tsx", "src/app/team/[slug]/page.tsx", "src/app/t/[code]/page.tsx", "src/app/team/[slug]/game/**", "src/actions/attendance.ts"],
+      "owns": [
+        "src/app/globals.css",
+        "src/components/AppShell.tsx",
+        "src/components/ui/**",
+        "src/components/EventRow.tsx",
+        "src/app/team/[slug]/page.tsx",
+        "src/app/t/[code]/page.tsx",
+        "src/app/team/[slug]/game/**",
+        "src/actions/attendance.ts"
+      ],
       "exports": [
         "src/components/AppShell.tsx: BottomNav with aria-current, Lucide icons, team-colored active tab",
         "src/app/globals.css: --text-muted and warning tokens at >=7:1 on their grounds; --team-on-primary-muted",
@@ -196,19 +384,27 @@
       ]
     },
     {
-      "id": "WP11", "title": "Migration runbook, CI, privacy notice, docs", "estimate": 2, "dependsOn": ["WP10"],
+      "id": "WP11",
+      "title": "Migration runbook, privacy notice, docs",
+      "estimate": 2,
+      "dependsOn": [
+        "WP10"
+      ],
       "goal": "Make the PR safe to merge and operate: zero-downtime migration from COACH_PASSCODE, CI on every push, dependency updates, a short privacy page, and updated README and master prompt.",
-      "owns": [".github/**", "docs/**", "README.md", "CLAUDE.md", "src/app/privacy/**"],
+      "owns": [
+        "docs/**",
+        "README.md",
+        "CLAUDE.md",
+        "src/app/privacy/**"
+      ],
       "exports": [
-        ".github/workflows/ci.yml running npm ci, typecheck, lint, test, build on pull requests",
-        ".github/dependabot.yml weekly",
         "docs/MIGRATION.md: steps 1-5 from docs/reviews/04-access-roles.md section 6 with the exact Netlify env changes",
         "/privacy page: what is public, who sees contacts, AI processing, retention, how to opt out of the public roster"
       ],
       "acceptance": [
-        "CI is green on the PR head.",
         "README documents every environment variable with scope (build vs functions) and the db:migrate / db:import commands.",
-        "Master prompt and CLAUDE.md reflect the repository interface, sessions, and the household model."
+        "Master prompt and CLAUDE.md reflect the repository interface, sessions, and the household model.",
+        "CI and the Netlify build are green on the final head."
       ]
     }
   ]

@@ -25,7 +25,7 @@ export default async function PublicHome({ params }: { params: Promise<{ code: s
         <Card className="mt-4">
           <h2 className="text-lg">Game day: where to go</h2>
           <p className="font-semibold">{d.team.gameVenue.name}</p>
-          {d.team.gameVenue.address && <a className="text-team underline" href={`https://maps.google.com/?q=${encodeURIComponent(d.team.gameVenue.address)}`}>{d.team.gameVenue.address}</a>}
+          {d.team.gameVenue.address && <a className="text-link underline" href={`https://maps.google.com/?q=${encodeURIComponent(d.team.gameVenue.address)}`}>{d.team.gameVenue.address}</a>}
           {d.team.gameVenue.directions && <p className="mt-1 text-sm text-muted">{d.team.gameVenue.directions}</p>}
           {d.team.scheduleImage && (
             <a href={d.team.scheduleImage} className="mt-3 block overflow-hidden rounded-lg border border-line">
@@ -47,7 +47,7 @@ export default async function PublicHome({ params }: { params: Promise<{ code: s
         <Card className="mt-4">
           <h2 className="text-lg">Latest from the coaches</h2>
           <p className="font-semibold">{d.announcements[0].subject}</p>
-          <details className="mt-1 text-sm"><summary className="cursor-pointer text-team">Read</summary><pre className="mt-2 whitespace-pre-wrap font-body">{d.announcements[0].body}</pre></details>
+          <details className="mt-1 text-sm"><summary className="cursor-pointer text-link">Read</summary><pre className="mt-2 whitespace-pre-wrap font-body">{d.announcements[0].body}</pre></details>
         </Card>
       )}
     </>

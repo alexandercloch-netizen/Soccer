@@ -12,9 +12,15 @@ Deliver **one pull request** against `main` that takes goodsport.team from a rea
 
 Everything must remain sport-agnostic (one `SportTemplate` per sport; no `if (sport === …)` in components or prompts) and reusable next season with a different team.
 
-## Why one PR and one builder at a time
+## One branch, one builder at a time
 
-A single PR keeps the review surface whole: reviewers see the identity model, the persistence layer, and the features that depend on them together. A single active builder removes merge conflicts inside the PR and keeps every commit green. Parallelism is spent where it's free: read-only verifiers.
+This is a single-developer project. The swarm builds **directly on the deploy branch** (`claude/soccer-team-management-site-8kh6n9`, which Netlify publishes to goodsport.team). That sets three rules the graph is built around:
+
+- **Every node leaves the site working.** Each node's acceptance list includes "existing pages render identically" or an equivalent; half-built features are hidden behind data (no rows) rather than flags.
+- **Commit locally, push only after verification.** The builder commits; the conductor pushes only once every verifier passes. Production never receives an unverified commit.
+- **Tests run before the build on Netlify.** `netlify.toml` runs typecheck, lint, and the unit suite ahead of `next build`, so a red push keeps the previous deploy live. CI runs the same plus Playwright.
+
+A single active builder removes merge conflicts entirely. Parallelism is spent where it's free: read-only verifiers.
 
 ## The work graph (summary)
 
@@ -22,6 +28,7 @@ A single PR keeps the review surface whole: reviewers see the identity model, th
 
 ```mermaid
 graph TD
+  WP00["WP00<br/>Test harness and CI baseline"]
   WP01["WP01<br/>Database foundation and repository interface"]
   WP02["WP02<br/>Identity: coach and admin sessions"]
   WP03["WP03<br/>Security hardening baseline"]
@@ -32,7 +39,8 @@ graph TD
   WP08["WP08<br/>Admin setup: seasons, teams, coaches, wizard save"]
   WP09["WP09<br/>Calendar feed and team notice"]
   WP10["WP10<br/>UX polish and accessibility pass"]
-  WP11["WP11<br/>Migration runbook, CI, privacy notice, docs"]
+  WP11["WP11<br/>Migration runbook, privacy notice, docs"]
+  WP00 --> WP01
   WP01 --> WP02
   WP02 --> WP03
   WP02 --> WP04
@@ -49,16 +57,16 @@ graph TD
   WP09 --> WP10
   WP10 --> WP11
   classDef cp fill:#132257,color:#fff,stroke:#132257;
-  class WP01,WP02,WP04,WP06,WP10,WP11 cp;
+  class WP00,WP01,WP02,WP04,WP06,WP10,WP11 cp;
 ```
 
-Dark nodes are the critical path (WP01 → WP02 → WP04 → WP06 → WP10 → WP11). Total size 40 units; the critical path is 25, so with one builder at a time the remaining 15 units of side branches (WP03, WP05, WP07, WP08, WP09) are slotted into the order where their dependencies allow. Cut set: {WP01, WP02}. Everything depends on them; nothing ships without them.
+Dark nodes are the critical path (WP00 → WP01 → WP02 → WP04 → WP06 → WP10 → WP11). Total size 42 units; the critical path is 27, so with one builder at a time the remaining 15 units of side branches (WP03, WP05, WP07, WP08, WP09) are slotted into the order where their dependencies allow. Cut set: {WP00, WP01, WP02}. Everything depends on them; nothing ships without them.
 
 ## Conductor rules
 
 1. Load `graph.json`. Compute the topological order and the critical path. Announce both.
 2. Load `state.json` if it exists. Skip nodes marked `done`. If a node is `verifying` or `building`, restart that node from the builder.
-3. For each node in order: run **one** builder. When it returns, run **all** applicable verifiers **in parallel**. If any verifier fails, send the concatenated failures back to the same builder role (fresh agent, same node) for a fix round. Maximum three builder rounds per node. If still failing, mark the node `blocked`, stop, and report; a human decides.
+3. For each node in order: run **one** builder. When it returns, run **all** applicable verifiers **in parallel**. If any verifier fails, send the concatenated failures back to the same builder role (fresh agent, same node) for a fix round. Maximum three builder rounds per node. If still failing, mark the node `blocked`, stop, and report; a human decides. When all verifiers pass, run the **publisher** step: re-run `npm run test:ci`, mark the node `done` in `state.json`, commit that, and push.
 4. Never edit files yourself. Never run two builders at once. Never skip verification.
 5. After the last node, run the integrator.
 
@@ -74,7 +82,9 @@ You are the only writer. Read the node in `graph.json` before touching anything.
 - **Simple beats clever.** No new dependency without a one-line justification in the commit body. No feature flags for things that should just work.
 - **Tests are part of the node.** Add unit tests for pure logic and at least one request-level test per new route handler. Keep `npm run typecheck && npm run lint && npm test && npm run build` green.
 - **Commit format.** Subject `"<node id>: <node title>"`. Body: what changed, contracts exported, anything deviating from the spec and why. One commit per node round (a fix round may add a second commit with subject `"<node id>: fix — <what>"`).
+- **Tests are not optional.** `docs/TESTING.md` is binding. Each acceptance item gets an automated test in the matching layer (unit, contract, request, privacy, e2e); list the test file next to each item in your report. Authorization is tested as the five-role matrix. No `.skip(` or `.only(`.
 - **State.** Update `docs/swarm/state.json` before committing.
+- **Do not push.** Commit locally with the node id in the subject. The conductor pushes after verification.
 - **Report.** Return: files changed, how each acceptance item was met, anything not done and why. Do not pad.
 
 ## Verifier rules
@@ -91,7 +101,7 @@ You are read-only. You have the builder's report, the diff, and the node spec.
 | id | Lens | What it checks |
 |---|---|---|
 | `contracts` | Contracts | Every `exports` symbol exists, is used by at least one consumer or test, and predecessors' contracts are consumed, not redefined. |
-| `tests` | Checks | `npm run typecheck && npm run lint && npm test && npm run build` pass on the commit; new logic has tests; no skipped tests. |
+| `tests` | Checks | First: every acceptance item in the node maps to a named automated test, per `docs/TESTING.md`. Then `npm run test:ci` passes on the commit, `npm run test:e2e` passes for nodes that touch screens, `npm run test:contract` passes for nodes that touch the repository; no skipped or focused tests; authorization matrix present for every new write. |
 | `security` | Security | Server-side authorization on writes; no PII in public routes or payloads; input validated with zod; no secrets or PII in logs; headers and cookies as specified in `docs/reviews/03-security.md`. |
 | `ux` | Simplicity | The node's screens meet `docs/reviews/01-design-ux.md` §4 for the affected audience; tap targets ≥48px; works at 400px width; undo, not confirm dialogs; no developer copy in the UI. |
 | `sport-agnostic` | Reuse | No sport branching in components or prompts; new behavior reads from `SportTemplate`; a T-ball team would work with the same code. |
@@ -107,10 +117,13 @@ Decisions the graph is built on (from `graph.json` → `decisions`):
 - **Persistence:** Neon Postgres (Netlify DB) via Drizzle, behind the TeamRepo interface; the JSON file repo stays for local dev, tests, and seeding. Chosen over Netlify Blobs because the identity model (users, sessions, tokens, households, audit) is relational and the PR is meant to be the durable foundation.
 - **Identity:** Coaches/admin: email 6-digit code or link (Resend, console fallback in dev) issuing server-side sessions. Parents: signed family links texted by the coach, plus a claim-by-masked-email fallback. No passwords anywhere. Legacy COACH_PASSCODE stays as a shim until both coaches have signed in.
 - **Snack sign-up:** Generic Signup slots (role: snack) so volunteer sign-ups come free later; one slot per game; parent claim requires a household session; coach can assign/clear anything.
+- **Branching:** Single developer, single branch: the swarm builds directly on the deploy branch. Every node must leave the site working (its acceptance includes existing pages rendering identically), builders commit locally, and a node is pushed only after its verifiers pass, so production only ever receives verified commits.
+- **Testing:** docs/TESTING.md is binding. Every acceptance item maps to an automated test in the matching layer; the tests verifier fails a node otherwise.
 
 | Node | Title | Depends on | Size | Owns (top-level) |
 |---|---|---|---|---|
-| WP01 | Database foundation and repository interface | — | 5 | src/lib/db, src/lib/data/repo.ts, src/lib/data/getTeam.ts |
+| WP00 | Test harness and CI baseline | — | 2 | tests, vitest.config.ts, vitest.contract.config.ts |
+| WP01 | Database foundation and repository interface | WP00 | 5 | src/lib/db, src/lib/data/repo.ts, src/lib/data/getTeam.ts |
 | WP02 | Identity: coach and admin sessions | WP01 | 5 | src/lib/auth, src/lib/auth.ts, src/proxy.ts |
 | WP03 | Security hardening baseline | WP02 | 3 | next.config.ts, src/lib/ai, prompts |
 | WP04 | Schedule editing for coaches | WP02 | 5 | src/app/team/[slug]/schedule, src/app/team/[slug]/events, src/actions/events.ts |
@@ -120,18 +133,18 @@ Decisions the graph is built on (from `graph.json` → `decisions`):
 | WP08 | Admin setup: seasons, teams, coaches, wizard save | WP02, WP04 | 4 | src/app/admin, src/actions/admin.ts, src/components/SetupWizard.tsx |
 | WP09 | Calendar feed and team notice | WP04 | 2 | src/app/t/[code]/calendar.ics, src/lib/ics.ts, src/actions/notice.ts |
 | WP10 | UX polish and accessibility pass | WP06, WP07, WP08, WP09 | 4 | src/app/globals.css, src/components/AppShell.tsx, src/components/ui |
-| WP11 | Migration runbook, CI, privacy notice, docs | WP10 | 2 | .github, docs, README.md |
+| WP11 | Migration runbook, privacy notice, docs | WP10 | 2 | docs, README.md, CLAUDE.md |
 
-Build order (topological, ties alphabetical): **WP01 → WP02 → WP03 → WP04 → WP05 → WP06 → WP07 → WP08 → WP09 → WP10 → WP11**.
+Build order (topological, ties alphabetical): **WP00 → WP01 → WP02 → WP03 → WP04 → WP05 → WP06 → WP07 → WP08 → WP09 → WP10 → WP11**.
 
 Each node's full `goal`, `exports`, and `acceptance` list are in `graph.json`; the builder prompt template in `workflow.js` injects them verbatim.
 
 ## How to run it
 
-1. Open a session on a fresh branch from `main` (or from the current review branch) named `feat/v2-swarm`.
+1. Stay on the deploy branch. Make sure the working tree is clean and CI is green on the current head.
 2. Set up a Neon database and `RESEND_API_KEY` for the builders to test against, or let WP01/WP02 use the local fallbacks.
-3. Invoke the Workflow tool with `scriptPath: docs/swarm/workflow.js` and `args: { graph: <contents of graph.json>, branch: "feat/v2-swarm" }`. To resume after a stop, add `startAt: "<node id>"`.
-4. When the integrator returns, open the PR against `main` using `docs/swarm/PR-DESCRIPTION.md` as the body.
+3. Invoke the Workflow tool with `scriptPath: docs/swarm/workflow.js` and `args: { graph: <contents of graph.json>, branch: "claude/soccer-team-management-site-8kh6n9" }`. To resume after a stop, add `startAt: "<node id>"`.
+4. When the integrator returns, `docs/swarm/PR-DESCRIPTION.md` doubles as the release note; open a PR to `main` from the same branch when you want a review surface, or merge when ready.
 
 ## Reviews that shaped this graph
 

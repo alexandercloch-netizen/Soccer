@@ -38,8 +38,8 @@ export default async function Roster({ params }: { params: Promise<{ slug: strin
                   {gs.map((g) => (
                     <div key={g!.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                       <span className="font-semibold">{g!.name}</span>
-                      {g!.phone && <a className="tap inline-flex items-center text-team underline" href={`tel:${g!.phone.replace(/\D/g, "")}`}>{g!.phone}</a>}
-                      {g!.email && <a className="tap inline-flex items-center text-team underline" href={`mailto:${g!.email}`}>{g!.email}</a>}
+                      {g!.phone && <a className="tap inline-flex items-center text-link underline" href={`tel:${g!.phone.replace(/\D/g, "")}`}>{g!.phone}</a>}
+                      {g!.email && <a className="tap inline-flex items-center text-link underline" href={`mailto:${g!.email}`}>{g!.email}</a>}
                     </div>
                   ))}
                   {gs.length === 0 && <p className="text-sm text-warning">No guardian linked</p>}

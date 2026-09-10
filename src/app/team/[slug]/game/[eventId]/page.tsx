@@ -18,7 +18,7 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
       {d.team.gameVenue && (
         <Card className="mb-4 text-sm">
           <p className="font-display font-bold">📍 {d.team.gameVenue.name}</p>
-          {d.team.gameVenue.address && <a className="text-team underline" href={`https://maps.google.com/?q=${encodeURIComponent(d.team.gameVenue.address)}`}>{d.team.gameVenue.address}</a>}
+          {d.team.gameVenue.address && <a className="text-link underline" href={`https://maps.google.com/?q=${encodeURIComponent(d.team.gameVenue.address)}`}>{d.team.gameVenue.address}</a>}
           {d.team.gameVenue.directions && <p className="mt-1 text-muted">{d.team.gameVenue.directions}</p>}
         </Card>
       )}

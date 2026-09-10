@@ -8,16 +8,19 @@
   --text: #1B1F24;
   --text-muted: #5C6470;
   --border: #E2DFD8;
-  --success: #2E8B57;
-  --warning: #C77700;
-  --danger: #C2413B;
-  --info: #2F6FDB;
+  /* Semantic text colors, tuned per theme so they pass 4.5:1 on both the page and their 15% tints. */
+  --success: #1F6B42;
+  --warning: #8A5200;
+  --danger: #B0332E;
+  --info: #2158B8;
   --focus: #2F6FDB;
   /* Team tokens: overridden per team via inline style on <html>. Only these three change. */
   --team-primary: #132257;
   --team-on-primary: #FFFFFF;
   --team-accent: #FFFFFF;
   --team-primary-soft: color-mix(in oklch, var(--team-primary) 12%, var(--surface));
+  /* Team color as TEXT (links, initials). Dark mode lightens it so a navy team stays readable. */
+  --team-link: var(--team-primary);
   --radius-card: 12px;
   --radius-chip: 8px;
   color-scheme: light;
@@ -27,6 +30,8 @@
     --bg: #121417; --surface: #1B1F24; --surface-2: #242930;
     --text: #F2F2EF; --text-muted: #A3AAB5; --border: #2F353D;
     --team-primary-soft: color-mix(in oklch, var(--team-primary) 24%, var(--surface));
+    --success: #6FCF97; --warning: #FFB454; --danger: #F28B82; --info: #8AB4F8;
+    --team-link: color-mix(in oklch, var(--team-primary) 45%, #ffffff);
     color-scheme: dark;
   }
 }
@@ -34,6 +39,8 @@
   --bg: #121417; --surface: #1B1F24; --surface-2: #242930;
   --text: #F2F2EF; --text-muted: #A3AAB5; --border: #2F353D;
   --team-primary-soft: color-mix(in oklch, var(--team-primary) 24%, var(--surface));
+  --success: #6FCF97; --warning: #FFB454; --danger: #F28B82; --info: #8AB4F8;
+  --team-link: color-mix(in oklch, var(--team-primary) 45%, #ffffff);
   color-scheme: dark;
 }
 
@@ -51,6 +58,7 @@
   --color-team: var(--team-primary);
   --color-on-team: var(--team-on-primary);
   --color-team-soft: var(--team-primary-soft);
+  --color-link: var(--team-link);
   --font-display: var(--font-nunito), system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
 }

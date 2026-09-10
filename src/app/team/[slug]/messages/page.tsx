@@ -16,7 +16,7 @@ export default async function Messages({ params }: { params: Promise<{ slug: str
         <Card key={a.id} className="mt-2">
           <p className="font-display font-bold">{a.subject}</p>
           <p className="text-sm text-muted">{a.sentAt} · {a.channel}</p>
-          <details className="mt-2 text-sm"><summary className="cursor-pointer text-team">Show message</summary><pre className="mt-2 whitespace-pre-wrap font-body">{a.body}</pre></details>
+          <details className="mt-2 text-sm"><summary className="cursor-pointer text-link">Show message</summary><pre className="mt-2 whitespace-pre-wrap font-body">{a.body}</pre></details>
         </Card>
       ))}
     </>

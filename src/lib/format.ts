@@ -13,7 +13,8 @@ export function fmtTime(t?: string): string {
   const ampm = h >= 12 ? "PM" : "AM";
   return `${((h + 11) % 12) + 1}${m ? ":" + String(m).padStart(2, "0") : ""} ${ampm}`;
 }
-export function todayIso(): string { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+/** "Today" for schedule logic. GOODSPORT_NOW=YYYY-MM-DD pins it for tests and demos. */
+export function todayIso(): string { const pinned = process.env.GOODSPORT_NOW; if (pinned && /^\d{4}-\d{2}-\d{2}$/.test(pinned)) return pinned; const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
 export function upcoming<T extends TeamEvent>(events: T[], from = todayIso()): T[] {
   return events.filter((e) => e.date && e.date >= from && e.status !== "cancelled").sort((a, b) => (a.date! + (a.startTime ?? "")).localeCompare(b.date! + (b.startTime ?? "")));
 }
