@@ -1,4 +1,4 @@
-# TeamHQ
+# GoodSport
 
 Youth rec team manager. Sport-agnostic by design: all sport-specific behavior lives in `src/lib/sports/templates.ts`; never branch on sport in components or prompts.
 

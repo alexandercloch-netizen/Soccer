@@ -3,6 +3,7 @@ import { upcoming, fmtDate, fmtTime, KIND_ICON } from "@/lib/format";
 import { Button, Card, Chip, PageHeader } from "@/components/ui";
 import { EventRow } from "@/components/EventRow";
 import { aiEnabled } from "@/lib/ai/provider";
+import { passcodeConfigured } from "@/lib/auth";
 
 export default async function ThisWeek({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -44,6 +45,7 @@ export default async function ThisWeek({ params }: { params: Promise<{ slug: str
         {undated.map((e) => <Chip key={e.id} tone="neutral">📌 {e.title}: date TBD</Chip>)}
         {d.events.filter((e) => e.kind === "game" && !e.snackGuardianId).length > 0 && <Chip tone="warning">🍊 Games without a snack parent</Chip>}
         {!aiEnabled() && <Chip tone="neutral">✨ AI off (no API key). Manual tools still work.</Chip>}
+        {!passcodeConfigured() && <Chip tone="danger">🔓 Coach view is open to anyone with the link. Set COACH_PASSCODE.</Chip>}
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">

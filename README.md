@@ -1,4 +1,4 @@
-# TeamHQ
+# GoodSport (goodsport.team)
 
 Run a youth rec team from your phone. Built first for **Tottenham Boys** (Vernon Hills Park District, Fall 2026 Pre-K/K soccer), designed to be reused for future teams and other sports.
 
@@ -42,10 +42,11 @@ The repo includes `netlify.toml`, so Netlify builds it with the official Next.js
 2. Branch to deploy: `claude/soccer-team-management-site-8kh6n9` (or `main` after merging). Build settings are read from `netlify.toml`.
 3. Environment variables (Site configuration → Environment variables):
    - `PRIVATE_CONTACTS_JSON`: run `npm run private:env` locally and paste the output. Without it the deployed coach roster shows names but no phone numbers. Mark it as a secret.
+   - `COACH_PASSCODE`: a passcode the coaches share. Locks the coach view and AI routes; parent pages stay open. Strongly recommended on a public domain.
    - `ANTHROPIC_API_KEY` (optional): turns on the AI features.
 4. Deploy. Parent page: `https://<your-site>.netlify.app/t/spurs26`. Coach view: `/team/tottenham-fall-2026`.
 
-The coach view has no login yet (phase 2), so share only the `/t/spurs26` link with families for now.
+Coaches sign in once at `/login`; the cookie lasts 120 days. Sign out from **More → Sign out**. Real per-coach accounts arrive in phase 2.
 
 ## Privacy
 

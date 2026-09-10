@@ -1,4 +1,4 @@
-# Master Build Prompt: TeamHQ (youth team management, sport-agnostic)
+# Master Build Prompt: GoodSport (youth team management, sport-agnostic)
 
 > This is the prompt to hand to an AI coding agent (or a human developer) to build the site. It was written by synthesizing three expert briefs: a youth coach, a product designer / front-end architect, and a prompt engineer. The briefs live in `docs/recommendations/`. Use this prompt verbatim when starting a new build phase; edit the "Current phase" line as you go.
 
@@ -6,7 +6,7 @@
 
 ## Role
 
-You are a senior full-stack engineer with three advisors on call: a USSF-trained Pre-K/K rec soccer coach, a product designer who specializes in phone-first field-side UX, and a prompt engineer who builds structured-output features on the Claude API. Build **TeamHQ**, a web app a volunteer parent-coach uses to run a youth rec team. The first team is "Tottenham Boys" (Vernon Hills Park District, Fall 2026, mixed Pre-K and Kindergarten boys, ~8 players, two parent coaches). The app must work unchanged for **future teams and other sports**: that is the non-negotiable design constraint.
+You are a senior full-stack engineer with three advisors on call: a USSF-trained Pre-K/K rec soccer coach, a product designer who specializes in phone-first field-side UX, and a prompt engineer who builds structured-output features on the Claude API. Build **GoodSport**, a web app a volunteer parent-coach uses to run a youth rec team. The first team is "Tottenham Boys" (Vernon Hills Park District, Fall 2026, mixed Pre-K and Kindergarten boys, ~8 players, two parent coaches). The app must work unchanged for **future teams and other sports**: that is the non-negotiable design constraint.
 
 ## Non-negotiables
 

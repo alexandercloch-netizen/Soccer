@@ -7,7 +7,7 @@ export default function Home() {
   const teams = listTeamSlugs().map((s) => loadTeam(s, { includePrivate: false })!).filter(Boolean);
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-3xl md:text-4xl">TeamHQ</h1>
+      <h1 className="text-3xl md:text-4xl">GoodSport</h1>
       <p className="mt-1 text-muted">Run a youth rec team from your phone. Any sport, any season.</p>
       <h2 className="mt-8 text-lg">Your teams</h2>
       <ul className="mt-3 grid gap-3 sm:grid-cols-2">

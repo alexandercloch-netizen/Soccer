@@ -9,6 +9,7 @@ export default async function More({ params }: { params: Promise<{ slug: string 
     { href: `${base}/setup`, icon: "✨", title: "Season setup wizard", body: "Paste the club's email; review; save." },
     { href: `${base}/settings`, icon: "⚙️", title: "Settings", body: "Colors, sport template, sharing, privacy." },
     { href: `/`, icon: "🔁", title: "Switch team", body: "Other seasons and sports." },
+    { href: `/api/logout`, icon: "🚪", title: "Sign out", body: "Lock the coach view on this device." },
   ];
   return (
     <>
