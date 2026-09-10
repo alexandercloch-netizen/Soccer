@@ -10,10 +10,11 @@ export function EventRow({ e, href, snack }: { e: TeamEvent; href?: string; snac
       <div className="min-w-0 flex-1">
         <p className="truncate font-display font-bold">{e.title}</p>
         <p className="truncate text-sm text-muted">
-          {fmtDate(e.date)} · {e.kind === "rainDate" || e.kind === "pictureDay" ? KIND_LABEL[e.kind] : fmtTime(e.startTime)}{e.location ? ` · ${e.location}` : ""}
+          {fmtDate(e.date)} · {e.kind === "rainDate" ? KIND_LABEL[e.kind] : fmtTime(e.startTime)}{e.arriveTime ? ` (arrive ${fmtTime(e.arriveTime)})` : ""}{e.location ? ` · ${e.location}` : ""}
         </p>
         {snack && <p className="text-sm text-muted">🍊 Snack: {snack}</p>}
       </div>
+      {e.homeAway && <Chip tone={e.homeAway === "home" ? "team" : "neutral"}>{e.homeAway === "home" ? "Home" : "Away"}</Chip>}
       {e.status === "tentative" && <Chip tone="warning">Tentative</Chip>}
       {e.status === "cancelled" && <Chip tone="danger">Cancelled</Chip>}
     </div>

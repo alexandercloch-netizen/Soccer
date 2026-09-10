@@ -15,9 +15,24 @@ export default async function PublicHome({ params }: { params: Promise<{ code: s
         <Card tone="team">
           <p className="text-sm font-semibold uppercase tracking-wide opacity-80">Next up</p>
           <p className="mt-1 font-display text-2xl font-extrabold">{KIND_ICON[hero.kind]} {hero.title}</p>
-          <p className="mt-1 text-lg">{fmtDate(hero.date, { weekday: "long", month: "long", day: "numeric" })} · {fmtTime(hero.startTime)}</p>
+          <p className="mt-1 text-lg">{fmtDate(hero.date, { weekday: "long", month: "long", day: "numeric" })} · {fmtTime(hero.startTime)}{hero.endTime ? `–${fmtTime(hero.endTime)}` : ""}</p>
+          {hero.arriveTime && <p className="opacity-90">⏰ Arrive {fmtTime(hero.arriveTime)}{hero.homeAway ? ` · ${hero.homeAway === "home" ? "Home" : "Away"}` : ""}</p>}
           {hero.location && <p className="opacity-90">📍 {hero.location}</p>}
           {hero.snack && <p className="opacity-90">🍊 Snack: {hero.snack}</p>}
+        </Card>
+      )}
+      {d.team.gameVenue && (
+        <Card className="mt-4">
+          <h2 className="text-lg">Game day: where to go</h2>
+          <p className="font-semibold">{d.team.gameVenue.name}</p>
+          {d.team.gameVenue.address && <a className="text-team underline" href={`https://maps.google.com/?q=${encodeURIComponent(d.team.gameVenue.address)}`}>{d.team.gameVenue.address}</a>}
+          {d.team.gameVenue.directions && <p className="mt-1 text-sm text-muted">{d.team.gameVenue.directions}</p>}
+          {d.team.scheduleImage && (
+            <a href={d.team.scheduleImage} className="mt-3 block overflow-hidden rounded-lg border border-line">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={d.team.scheduleImage} alt={`${d.team.name} ${d.season.name} game schedule and field map`} className="w-full" loading="lazy" />
+            </a>
+          )}
         </Card>
       )}
       <Card className="mt-4">

@@ -14,7 +14,14 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
   const gf = d.template.gameFormat;
   return (
     <>
-      <PageHeader title={ev.title} subtitle={`${fmtDate(ev.date, { weekday: "long", month: "long", day: "numeric" })} · ${fmtTime(ev.startTime)} · ${ev.location ?? ""}`} />
+      <PageHeader title={`${ev.title}${ev.homeAway ? ` (${ev.homeAway})` : ""}`} subtitle={`${fmtDate(ev.date, { weekday: "long", month: "long", day: "numeric" })} · ${fmtTime(ev.startTime)}${ev.endTime ? `–${fmtTime(ev.endTime)}` : ""}${ev.arriveTime ? ` · arrive ${fmtTime(ev.arriveTime)}` : ""} · ${ev.location ?? ""}`} />
+      {d.team.gameVenue && (
+        <Card className="mb-4 text-sm">
+          <p className="font-display font-bold">📍 {d.team.gameVenue.name}</p>
+          {d.team.gameVenue.address && <a className="text-team underline" href={`https://maps.google.com/?q=${encodeURIComponent(d.team.gameVenue.address)}`}>{d.team.gameVenue.address}</a>}
+          {d.team.gameVenue.directions && <p className="mt-1 text-muted">{d.team.gameVenue.directions}</p>}
+        </Card>
+      )}
       <Card tone="muted" className="mb-4 text-sm">
         <div className="flex flex-wrap gap-x-6 gap-y-1">
           <span>🏟️ {gf.label}</span>

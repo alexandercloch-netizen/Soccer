@@ -20,6 +20,8 @@ export interface Team {
   shareCode: string;
   coaches: { name: string; role: Role; email?: string }[];
   homeVenue?: string;
+  gameVenue?: { name: string; address?: string; directions?: string };
+  scheduleImage?: string;
 }
 
 export interface Guardian {
@@ -61,6 +63,8 @@ export interface TeamEvent {
   endTime?: string;
   location?: string;
   opponent?: string;
+  homeAway?: "home" | "away";
+  arriveTime?: string;
   status: EventStatus;
   notes?: string;
   snackGuardianId?: string;

@@ -12,7 +12,7 @@ export default async function ThisWeek({ params }: { params: Promise<{ slug: str
   const hero = next[0];
   const snack = hero?.snackGuardianId ? d.guardianById.get(hero.snackGuardianId)?.name : undefined;
   const unregistered = d.players.filter((p) => p.status !== "registered");
-  const tbd = d.events.filter((e) => e.kind === "game" && (!e.startTime || /TBD/i.test(e.location ?? "")));
+  const tbd = d.events.filter((e) => e.kind === "game" && !e.startTime);
   const undated = d.events.filter((e) => !e.date && e.status !== "cancelled");
   const registered = d.players.filter((p) => p.status === "registered").length;
 
@@ -23,7 +23,8 @@ export default async function ThisWeek({ params }: { params: Promise<{ slug: str
         <Card tone="team">
           <p className="text-sm font-semibold uppercase tracking-wide opacity-80">Next up</p>
           <p className="mt-1 font-display text-2xl font-extrabold md:text-3xl">{KIND_ICON[hero.kind]} {hero.title}</p>
-          <p className="mt-1 text-lg">{fmtDate(hero.date, { weekday: "long", month: "long", day: "numeric" })} · {fmtTime(hero.startTime)}</p>
+          <p className="mt-1 text-lg">{fmtDate(hero.date, { weekday: "long", month: "long", day: "numeric" })} · {fmtTime(hero.startTime)}{hero.endTime ? `–${fmtTime(hero.endTime)}` : ""}</p>
+          {hero.arriveTime && <p className="opacity-90">⏰ Arrive {fmtTime(hero.arriveTime)}{hero.homeAway ? ` · ${hero.homeAway === "home" ? "Home" : "Away"}` : ""}</p>}
           {hero.location && <p className="opacity-90">📍 {hero.location}</p>}
           {snack && <p className="opacity-90">🍊 Snack: {snack}</p>}
           {hero.notes && <p className="mt-2 text-sm opacity-90">{hero.notes}</p>}
@@ -39,7 +40,7 @@ export default async function ThisWeek({ params }: { params: Promise<{ slug: str
       <h2 className="mt-6 text-lg">Needs attention</h2>
       <div className="mt-2 flex flex-wrap gap-2">
         {unregistered.map((p) => <Chip key={p.id} tone="warning">⚠️ {p.firstName} not registered</Chip>)}
-        {tbd.length > 0 && <Chip tone="info">🕒 {tbd.length} game times still TBD (club posts ~Sept 1)</Chip>}
+        {tbd.length > 0 && <Chip tone="info">🕒 {tbd.length} game times still TBD</Chip>}
         {undated.map((e) => <Chip key={e.id} tone="neutral">📌 {e.title}: date TBD</Chip>)}
         {d.events.filter((e) => e.kind === "game" && !e.snackGuardianId).length > 0 && <Chip tone="warning">🍊 Games without a snack parent</Chip>}
         {!aiEnabled() && <Chip tone="neutral">✨ AI off (no API key). Manual tools still work.</Chip>}
@@ -59,6 +60,8 @@ export default async function ThisWeek({ params }: { params: Promise<{ slug: str
             <div><dt className="text-muted">Coaches</dt><dd>{d.team.coaches.map((c) => c.name).join(", ")}</dd></div>
             <div><dt className="text-muted">Home {d.template.vocabulary.venue}</dt><dd>{d.team.homeVenue}</dd></div>
           </dl>
+          {d.team.gameVenue && (<><h3 className="mt-4 font-display font-bold">Game {d.template.vocabulary.venue}</h3><p className="text-sm">{d.team.gameVenue.name}</p><p className="text-sm text-muted">{d.team.gameVenue.directions}</p></>)}
+          {d.team.scheduleImage && <Button href={d.team.scheduleImage} variant="ghost" className="mt-2 px-0">Parent schedule graphic →</Button>}
           <h3 className="mt-4 font-display font-bold">Every-week gear</h3>
           <ul className="mt-1 list-disc pl-5 text-sm">{d.template.gear.player.map((g) => <li key={g}>{g}</li>)}</ul>
         </Card>
