@@ -29,7 +29,7 @@
     "@netlify/plugin-nextjs": "^5.15.13",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^22.20.2",
+    "@types/node": "^26.5.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
