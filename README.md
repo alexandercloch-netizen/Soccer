@@ -34,6 +34,19 @@ npm run lint
 npm run build
 ```
 
+## Deploy to Netlify
+
+The repo includes `netlify.toml`, so Netlify builds it with the official Next.js runtime.
+
+1. In Netlify: **Add new site → Import an existing project → GitHub → `alexandercloch-netizen/Soccer`**.
+2. Branch to deploy: `claude/soccer-team-management-site-8kh6n9` (or `main` after merging). Build settings are read from `netlify.toml`.
+3. Environment variables (Site configuration → Environment variables):
+   - `PRIVATE_CONTACTS_JSON`: run `npm run private:env` locally and paste the output. Without it the deployed coach roster shows names but no phone numbers. Mark it as a secret.
+   - `ANTHROPIC_API_KEY` (optional): turns on the AI features.
+4. Deploy. Parent page: `https://<your-site>.netlify.app/t/spurs26`. Coach view: `/team/tottenham-fall-2026`.
+
+The coach view has no login yet (phase 2), so share only the `/t/spurs26` link with families for now.
+
 ## Privacy
 
 This repository is public. Kids' full names, birthdays, guardian phone numbers, emails, and medical notes belong in `data/private/`, which is gitignored. The committed seed uses first names and last initials only. Public parent pages are built from a separate projection that never includes contact data.

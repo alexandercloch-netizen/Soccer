@@ -17,6 +17,26 @@ function readJson<T>(file: string): T | null {
   try { return JSON.parse(fs.readFileSync(file, "utf8")) as T; } catch { return null; }
 }
 
+/**
+ * Private overlay source, in priority order:
+ *  1. data/private/<slug>.contacts.json (local development; gitignored)
+ *  2. PRIVATE_CONTACTS_JSON env var (hosted deploys such as Netlify): a JSON
+ *     object keyed by team slug, each value shaped like the overlay file.
+ */
+function readOverlay(slug: string): Overlay | null {
+  const fromFile = readJson<Overlay>(path.join(PRIVATE_DIR, `${slug}.contacts.json`));
+  if (fromFile) return fromFile;
+  const env = process.env.PRIVATE_CONTACTS_JSON;
+  if (!env) return null;
+  try {
+    const all = JSON.parse(env) as Record<string, Overlay>;
+    return all[slug] ?? null;
+  } catch {
+    console.warn("PRIVATE_CONTACTS_JSON is not valid JSON; ignoring.");
+    return null;
+  }
+}
+
 export function listTeamSlugs(): string[] {
   if (!fs.existsSync(TEAMS_DIR)) return [];
   return fs.readdirSync(TEAMS_DIR).filter((f) => f.endsWith(".json")).map((f) => f.replace(/\.json$/, ""));
@@ -26,7 +46,7 @@ export function loadTeam(slug: string, opts: { includePrivate: boolean }): TeamD
   const base = readJson<TeamData>(path.join(TEAMS_DIR, `${slug}.json`));
   if (!base) return null;
   if (!opts.includePrivate) return base;
-  const overlay = readJson<Overlay>(path.join(PRIVATE_DIR, `${slug}.contacts.json`));
+  const overlay = readOverlay(slug);
   if (!overlay) return base;
   return {
     ...base,
@@ -44,5 +64,5 @@ export function loadTeamByShareCode(code: string): TeamData | null {
 }
 
 export function hasPrivateOverlay(slug: string): boolean {
-  return fs.existsSync(path.join(PRIVATE_DIR, `${slug}.contacts.json`));
+  return readOverlay(slug) !== null;
 }

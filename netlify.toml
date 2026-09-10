@@ -1,0 +1,9 @@
+# Netlify build for the Next.js app. The Next.js runtime is detected
+# automatically; this file pins the basics so the site builds the same
+# way from any branch.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
