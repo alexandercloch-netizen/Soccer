@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+/* ---------- Design tokens (light is the default; dark via system or data-theme) ---------- */
+:root {
+  --bg: #F8F7F4;
+  --surface: #FFFFFF;
+  --surface-2: #F1EFEA;
+  --text: #1B1F24;
+  --text-muted: #5C6470;
+  --border: #E2DFD8;
+  --success: #2E8B57;
+  --warning: #C77700;
+  --danger: #C2413B;
+  --info: #2F6FDB;
+  --focus: #2F6FDB;
+  /* Team tokens: overridden per team via inline style on <html>. Only these three change. */
+  --team-primary: #132257;
+  --team-on-primary: #FFFFFF;
+  --team-accent: #FFFFFF;
+  --team-primary-soft: color-mix(in oklch, var(--team-primary) 12%, var(--surface));
+  --radius-card: 12px;
+  --radius-chip: 8px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121417; --surface: #1B1F24; --surface-2: #242930;
+    --text: #F2F2EF; --text-muted: #A3AAB5; --border: #2F353D;
+    --team-primary-soft: color-mix(in oklch, var(--team-primary) 24%, var(--surface));
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121417; --surface: #1B1F24; --surface-2: #242930;
+  --text: #F2F2EF; --text-muted: #A3AAB5; --border: #2F353D;
+  --team-primary-soft: color-mix(in oklch, var(--team-primary) 24%, var(--surface));
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--text);
+  --color-muted: var(--text-muted);
+  --color-line: var(--border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-team: var(--team-primary);
+  --color-on-team: var(--team-on-primary);
+  --color-team-soft: var(--team-primary-soft);
+  --font-display: var(--font-nunito), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html { background: var(--bg); }
+body {
+  margin: 0;
+  color: var(--text);
+  background: var(--bg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, .display { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.01em; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tabular { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* Field mode: bigger, higher contrast, for sunny sidelines. */
+[data-field-mode="on"] { font-size: 18px; }
+[data-field-mode="on"] .tap { min-height: 56px; }
+.tap { min-height: 48px; }

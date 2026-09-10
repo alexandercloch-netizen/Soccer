@@ -1,0 +1,9 @@
+{
+  "_comment": "Copy to tottenham-fall-2026.contacts.json (gitignored). Any field here overrides the public seed by id.",
+  "players": {
+    "p1": { "lastName": "Lastname", "dob": "2021-10-12", "school": "School name", "availabilityNotes": "Friday, Saturday, Sunday" }
+  },
+  "guardians": {
+    "g1": { "name": "Full Name", "phone": "(312) 555-0100", "email": "parent@example.com" }
+  }
+}

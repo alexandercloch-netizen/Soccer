@@ -1,0 +1,69 @@
+{
+  "org": { "id": "vhpd", "name": "Vernon Hills Park District", "contactEmail": "vhscrec@gmail.com", "notes": "Susie Kullby handles all roster and schedule changes. Email the club directly for conflicts; no need to copy coaches." },
+  "season": { "id": "fall-2026", "orgId": "vhpd", "name": "Fall 2026", "startDate": "2026-09-02", "endDate": "2026-10-31" },
+  "team": {
+    "id": "tottenham-fall-2026",
+    "slug": "tottenham-fall-2026",
+    "seasonId": "fall-2026",
+    "sportTemplateId": "soccer-u6",
+    "name": "Tottenham Boys",
+    "league": "Vernon Hills Soccer Club Fall League · Pre-K / Kindergarten Boys",
+    "theme": { "primary": "#132257", "accent": "#FFFFFF", "crestEmoji": "⚽" },
+    "shareCode": "spurs26",
+    "homeVenue": "Stone Fence Farm Field",
+    "coaches": [
+      { "name": "Alex Loch", "role": "owner" },
+      { "name": "Susan Townsend", "role": "coach" }
+    ]
+  },
+  "guardians": [
+    { "id": "g1", "name": "Alex L.", "relationship": "parent", "volunteerRoles": ["head coach"] },
+    { "id": "g2", "name": "Susan T.", "relationship": "parent", "volunteerRoles": ["coach"] },
+    { "id": "g3", "name": "Alicia J.", "relationship": "parent" },
+    { "id": "g4", "name": "Brandon K.", "relationship": "parent" },
+    { "id": "g5", "name": "Melissa A.", "relationship": "parent" },
+    { "id": "g6", "name": "Jamie M.", "relationship": "parent" },
+    { "id": "g7", "name": "Guardian (TBD)", "relationship": "parent" },
+    { "id": "g8", "name": "Nemanja D.", "relationship": "parent" }
+  ],
+  "players": [
+    { "id": "p1", "teamId": "tottenham-fall-2026", "firstName": "Arthur", "lastName": "L", "grade": "Preschool 3", "shirtSize": "Youth S", "photoConsent": false, "status": "registered", "guardianIds": ["g1"] },
+    { "id": "p2", "teamId": "tottenham-fall-2026", "firstName": "Jack", "lastName": "T", "grade": "Preschool 3", "shirtSize": "Youth S", "photoConsent": false, "status": "registered", "guardianIds": ["g2"] },
+    { "id": "p3", "teamId": "tottenham-fall-2026", "firstName": "Liam", "lastName": "J", "grade": "Kindergarten", "shirtSize": "Youth S", "photoConsent": false, "status": "registered", "guardianIds": ["g3"] },
+    { "id": "p4", "teamId": "tottenham-fall-2026", "firstName": "Dylan", "lastName": "K", "grade": "Kindergarten", "shirtSize": "Youth S", "photoConsent": false, "status": "registered", "guardianIds": ["g4"], "coachNotes": "Two siblings also playing soccer this season (scheduling/carpool)." },
+    { "id": "p5", "teamId": "tottenham-fall-2026", "firstName": "Connor", "lastName": "A", "grade": "Preschool 4", "shirtSize": "Youth S", "photoConsent": false, "status": "registered", "guardianIds": ["g5"] },
+    { "id": "p6", "teamId": "tottenham-fall-2026", "firstName": "Jaxon", "lastName": "M", "grade": "Kindergarten", "shirtSize": "Youth S", "photoConsent": false, "status": "registered", "guardianIds": ["g6"] },
+    { "id": "p7", "teamId": "tottenham-fall-2026", "firstName": "Anthony", "lastName": "S", "photoConsent": false, "status": "unregistered", "guardianIds": ["g7"], "coachNotes": "Not yet registered as of the roster export. Confirm with the club." },
+    { "id": "p8", "teamId": "tottenham-fall-2026", "firstName": "Dimitrije", "lastName": "D", "grade": "Kindergarten", "shirtSize": "Youth S", "photoConsent": false, "status": "registered", "guardianIds": ["g8"], "coachNotes": "Added 8/26 from registration." }
+  ],
+  "events": [
+    { "id": "e-p1", "teamId": "tottenham-fall-2026", "kind": "practice", "title": "First practice", "date": "2026-09-02", "startTime": "17:00", "endTime": "18:00", "location": "Stone Fence Farm Field", "status": "scheduled", "notes": "Shin guards required. Bring a labeled size 3 ball and water." },
+    { "id": "e-p2", "teamId": "tottenham-fall-2026", "kind": "practice", "title": "Practice", "date": "2026-09-09", "startTime": "17:00", "endTime": "18:00", "location": "Stone Fence Farm Field", "status": "scheduled" },
+    { "id": "e-g1", "teamId": "tottenham-fall-2026", "kind": "game", "title": "Game 1", "date": "2026-09-12", "location": "TBD (club posts ~Sept 1)", "status": "scheduled", "snackGuardianId": "g3" },
+    { "id": "e-p3", "teamId": "tottenham-fall-2026", "kind": "practice", "title": "Practice", "date": "2026-09-16", "startTime": "17:00", "endTime": "18:00", "location": "Stone Fence Farm Field", "status": "scheduled" },
+    { "id": "e-g2", "teamId": "tottenham-fall-2026", "kind": "game", "title": "Game 2", "date": "2026-09-19", "location": "TBD", "status": "scheduled", "snackGuardianId": "g4" },
+    { "id": "e-p4", "teamId": "tottenham-fall-2026", "kind": "practice", "title": "Practice", "date": "2026-09-23", "startTime": "17:00", "endTime": "18:00", "location": "Stone Fence Farm Field", "status": "scheduled" },
+    { "id": "e-g3", "teamId": "tottenham-fall-2026", "kind": "game", "title": "Game 3", "date": "2026-09-26", "location": "TBD", "status": "scheduled", "snackGuardianId": "g5" },
+    { "id": "e-p5", "teamId": "tottenham-fall-2026", "kind": "practice", "title": "Practice", "date": "2026-09-30", "startTime": "17:00", "endTime": "18:00", "location": "Stone Fence Farm Field", "status": "scheduled" },
+    { "id": "e-g4", "teamId": "tottenham-fall-2026", "kind": "game", "title": "Game 4", "date": "2026-10-03", "location": "TBD", "status": "scheduled", "snackGuardianId": "g6" },
+    { "id": "e-p6", "teamId": "tottenham-fall-2026", "kind": "practice", "title": "Practice", "date": "2026-10-07", "startTime": "17:00", "endTime": "18:00", "location": "Stone Fence Farm Field", "status": "scheduled" },
+    { "id": "e-g5", "teamId": "tottenham-fall-2026", "kind": "game", "title": "Game 5", "date": "2026-10-10", "location": "TBD", "status": "scheduled", "snackGuardianId": "g8" },
+    { "id": "e-p7", "teamId": "tottenham-fall-2026", "kind": "practice", "title": "Practice", "date": "2026-10-14", "startTime": "17:00", "endTime": "18:00", "location": "Stone Fence Farm Field", "status": "scheduled" },
+    { "id": "e-g6", "teamId": "tottenham-fall-2026", "kind": "game", "title": "Game 6", "date": "2026-10-17", "location": "TBD", "status": "scheduled", "snackGuardianId": "g1" },
+    { "id": "e-p8", "teamId": "tottenham-fall-2026", "kind": "practice", "title": "Practice", "date": "2026-10-21", "startTime": "17:00", "endTime": "18:00", "location": "Stone Fence Farm Field", "status": "scheduled" },
+    { "id": "e-g7", "teamId": "tottenham-fall-2026", "kind": "game", "title": "Game 7", "date": "2026-10-24", "location": "TBD", "status": "scheduled", "snackGuardianId": "g2" },
+    { "id": "e-p9", "teamId": "tottenham-fall-2026", "kind": "practice", "title": "Last practice", "date": "2026-10-28", "startTime": "17:00", "endTime": "18:00", "location": "Stone Fence Farm Field", "status": "scheduled" },
+    { "id": "e-g8", "teamId": "tottenham-fall-2026", "kind": "game", "title": "Game 8 (season finale)", "date": "2026-10-31", "location": "TBD", "status": "scheduled", "snackGuardianId": "g7" },
+    { "id": "e-pic", "teamId": "tottenham-fall-2026", "kind": "pictureDay", "title": "Picture day", "date": null, "status": "tentative", "notes": "Will be added to one of the game weekends. Date from the club." },
+    { "id": "e-rd1", "teamId": "tottenham-fall-2026", "kind": "rainDate", "title": "Rain date 1", "date": null, "status": "tentative", "notes": "Sunday rain date held by the club, used only if a game is cancelled." },
+    { "id": "e-rd2", "teamId": "tottenham-fall-2026", "kind": "rainDate", "title": "Rain date 2", "date": null, "status": "tentative", "notes": "Second Sunday rain date held by the club." }
+  ],
+  "attendance": [],
+  "announcements": [
+    {
+      "id": "a1", "teamId": "tottenham-fall-2026", "channel": "email", "sentAt": "2026-08-27",
+      "subject": "Welcome to Tottenham Boys fall soccer",
+      "body": "Hi Tottenham families,\n\nWe're Susan Townsend and Alex Loch, your coaches this fall. Our sons Jack and Arthur are on the team, and we're looking forward to a fun, low-pressure season of soccer with your boys.\n\nPRACTICE\nWednesdays, 5:00–6:00 PM\nStone Fence Farm Field\nFirst practice: Wednesday, September 2\n\nWHAT TO BRING EVERY WEEK\n• Shin guards (required to play)\n• Cleats or gym shoes\n• A size 3 ball, pumped up and labeled with your child's name\n• A water bottle\n\nSEASON AT A GLANCE\n• Two weeks of practice before games start\n• No games Labor Day weekend\n• Games are Saturdays, Sept 12 through Oct 31 (8 total). Game times post around Sept 1.\n• Picture day will be added to one of those weekends\n• Two Sunday rain dates are held in case of cancellations\n• Field closures are announced by the club and the park district\n\nSCHEDULE CONFLICTS\nIf Wednesdays at 5 don't work for your family, please email the club directly at vhscrec@gmail.com. Susie Kullby handles all roster and schedule changes — no need to copy us.\n\nONE QUICK FAVOR\nPlease hit reply so we know we have a working email for your family. If we don't hear from you by Monday night, we'll check with the club.\n\nSee you on the 2nd!\n\nAlex Loch & Susan Townsend"
+    }
+  ]
+}
