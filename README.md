@@ -48,6 +48,17 @@ The repo includes `netlify.toml`, so Netlify builds it with the official Next.js
 
 Coaches sign in once at `/login`; the cookie lasts 120 days. Sign out from **More → Sign out**. Real per-coach accounts arrive in phase 2.
 
+## Owner setup for phase 2 (accounts only you can create)
+
+The swarm plan in `docs/swarm/` builds identity and persistence on Supabase. Before it runs WP01, create:
+
+1. **Supabase project** (US East). Copy the project URL, the publishable key, and the secret key into Netlify (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SECRET_KEY` scoped to Functions only). Add `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` as GitHub Actions secrets so CI can push migrations.
+2. **Resend** with `goodsport.team` verified. Put the API key in Netlify as `RESEND_API_KEY`, and paste the SMTP credentials into Supabase Auth → SMTP so sign-in codes come from your domain.
+3. **Keep-alive token**: any random string, in Netlify as `KEEPALIVE_TOKEN` and in GitHub secrets, so the free Supabase project never pauses in the offseason.
+4. Optional: `ANTHROPIC_API_KEY` for the AI features, with a spend cap set in the Anthropic console.
+
+After migration step 4 in `docs/MIGRATION.md`, delete `COACH_PASSCODE` and `PRIVATE_CONTACTS_JSON`.
+
 ## Privacy
 
 This repository is public. Kids' full names, birthdays, guardian phone numbers, emails, and medical notes belong in `data/private/`, which is gitignored. The committed seed uses first names and last initials only. Public parent pages are built from a separate projection that never includes contact data.

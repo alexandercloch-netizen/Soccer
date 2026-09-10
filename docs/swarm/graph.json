@@ -1,11 +1,13 @@
 {
   "$comment": "Work graph for the GoodSport v2 PR. Nodes are work packages; dependsOn edges are hard contract dependencies. Build order = topological sort (ties alphabetical). estimate is relative size for the critical path.",
   "decisions": {
-    "persistence": "Neon Postgres (Netlify DB) via Drizzle, behind the TeamRepo interface; the JSON file repo stays for local dev, tests, and seeding. Chosen over Netlify Blobs because the identity model (users, sessions, tokens, households, audit) is relational and the PR is meant to be the durable foundation.",
-    "identity": "Coaches/admin: email 6-digit code or link (Resend, console fallback in dev) issuing server-side sessions. Parents: signed family links texted by the coach, plus a claim-by-masked-email fallback. No passwords anywhere. Legacy COACH_PASSCODE stays as a shim until both coaches have signed in.",
+    "persistence": "Supabase (Postgres + Auth + Storage) behind the TeamRepo interface. Migrations, RLS policies, and security-definer functions live in supabase/migrations; the JSON file repo stays for unit tests and seeding. Chosen over Neon + Drizzle + homegrown sessions after the scored review in docs/reviews/05-identity-platform.md: a solo maintainer should not own OTP/session code guarding children's contacts, and RLS gives a second enforcement layer that pgTAP can test.",
+    "identity": "Identity is a person, not a team credential. Supabase Auth email OTP / magic link for coaches and admins (no passwords, no SMS). One profiles row per auth user; org_memberships (org_admin) and team_memberships (head_coach | assistant_coach | team_parent). Parents: coach-texted family links create an anonymous auth user bound to a household; email OTP upgrades it to a full profile so one person can be a coach on one team and a parent on another. Legacy COACH_PASSCODE stays as a shim until both current coaches have signed in. Authorization: one SQL role lattice (has_team_role) used by every RLS policy and by the TypeScript requireRole guard.",
     "snack": "Generic Signup slots (role: snack) so volunteer sign-ups come free later; one slot per game; parent claim requires a household session; coach can assign/clear anything.",
     "branching": "Single developer, single branch: the swarm builds directly on the deploy branch. Every node must leave the site working (its acceptance includes existing pages rendering identically), builders commit locally, and a node is pushed only after its verifiers pass, so production only ever receives verified commits.",
-    "testing": "docs/TESTING.md is binding. Every acceptance item maps to an automated test in the matching layer; the tests verifier fails a node otherwise."
+    "testing": "docs/TESTING.md is binding. Every acceptance item maps to an automated test in the matching layer; the tests verifier fails a node otherwise.",
+    "parents": "Phone-only families use the family link; no SMS provider. The public parent page stays open by share link; identity is only for writes and private data.",
+    "offseason": "Supabase free tier pauses after 7 idle days. Start on Free with a keep-alive cron (GitHub Actions every 3 days hitting /api/keepalive); move to Pro the month a second org or photo storage arrives."
   },
   "verifiers": [
     {
@@ -49,15 +51,19 @@
         ".github/**",
         "netlify.toml",
         "package.json",
-        "docs/TESTING.md"
+        "docs/TESTING.md",
+        "supabase/tests/**",
+        "supabase/config.toml"
       ],
       "exports": [
         "tests/factories.ts: makeTeam({sportTemplateId, players, games, practices}) deterministic fixtures with fake contacts",
-        "tests/contract/repo.contract.ts: describeRepoContract(name, makeRepo) shared suite run by every TeamRepo implementation",
         "tests/request/authz.ts: withActor(role, teamId) helper that stubs a session for visitor | family | coach | otherCoach | admin, plus expectRefusedFor(action, roles)",
         "tests/privacy/assertContactFree.ts: assertContactFree(value) shared assertion used by projection and HTML tests",
         "tests/e2e/*.spec.ts: parent, coach, security, a11y journeys runnable with npm run test:e2e",
-        ".github/workflows/ci.yml and netlify.toml run typecheck, lint, unit, build (Netlify) and additionally Playwright (CI)"
+        ".github/workflows/ci.yml and netlify.toml run typecheck, lint, unit, build (Netlify) and additionally Playwright (CI)",
+        "tests/contract/repo.contract.ts: describeRepoContract(name, makeRepo) shared suite run by the fs repo and, in CI, the Supabase local stack",
+        "supabase/tests/: pgTAP harness with a fixture that seeds five actors (visitor, family, coach, otherCoach, admin) and a helper to set request.jwt.claims",
+        ".github/workflows/ci.yml: supabase/setup-cli -> supabase start -> supabase test db -> npm run test:contract, in addition to typecheck, lint, unit, build, Playwright"
       ],
       "acceptance": [
         "npm test runs in under 5 seconds locally and includes unit, request, and privacy layers.",
@@ -69,73 +75,107 @@
     },
     {
       "id": "WP01",
-      "title": "Database foundation and repository interface",
+      "title": "Supabase foundation: schema, RLS, repository interface, seed import",
       "estimate": 5,
       "dependsOn": [
         "WP00"
       ],
-      "goal": "Replace JSON-in-git as the runtime store with Neon Postgres via Drizzle, behind a TeamRepo interface, without changing any page's behavior. Keep the JSON file repo for local dev and tests, and add an import script that loads data/teams/*.json plus the private overlay (file or PRIVATE_CONTACTS_JSON) into the database.",
+      "goal": "Stand up the Supabase project as the runtime store behind a TeamRepo interface without changing any page's behavior. Schema and RLS as SQL migrations, the role lattice function, the contact-free public_team RPC, two server-only clients (RLS client and admin client), and an idempotent import of data/teams/*.json plus the private overlay. Keep the JSON file repo for unit tests and local fallback.",
       "owns": [
-        "src/lib/db/**",
+        "supabase/migrations/**",
+        "supabase/seed.sql",
+        "src/lib/supabase/**",
         "src/lib/data/repo.ts",
         "src/lib/data/getTeam.ts",
         "src/lib/data/getPublicTeam.ts",
         "scripts/import-seed.ts",
-        "drizzle.config.ts",
         "package.json",
         ".env.example",
-        "netlify.toml"
+        "netlify.toml",
+        "eslint.config.mjs"
       ],
       "exports": [
-        "src/lib/db/schema.ts: Drizzle tables orgs, seasons, teams, share_codes, players, households, guardians, player_guardians, events, signups, users, memberships, sessions, tokens, family_sessions, audit_log",
-        "src/lib/data/repo.ts: interface TeamRepo { listTeamSlugs; loadTeam(slug, {includePrivate}); loadTeamByShareCode(code); saveEvent; deleteEvent; saveSignup; getSignups(teamId); rotateShareCode; appendAudit }",
-        "src/lib/data/repo.ts: getRepo(): TeamRepo selected by DATA_BACKEND=postgres|fs (fs default when DATABASE_URL unset)",
-        "src/lib/data/repo.ts: TeamData gains signups: Signup[] and households: Household[]",
-        "scripts/import-seed.ts: npm run db:import loads seeds and the contacts overlay idempotently"
+        "supabase/migrations/0001_schema.sql: tables orgs, seasons, teams, share_codes, players, player_private, households, guardians, player_guardians, events, signups, profiles, org_memberships, team_memberships, household_members, invites, audit_log; RLS enabled on every table; grants revoked from anon/authenticated on private tables",
+        "supabase/migrations/0002_auth.sql: role_rank(text), has_team_role(team uuid, min_role text) security definer, public_team(code text) security definer returning allowlisted JSON, claim_family_link(token text)",
+        "src/lib/supabase/server.ts: createServerClient with getAll/setAll cookies, httpOnly, used by server components, route handlers, actions, proxy",
+        "src/lib/supabase/admin.ts: secret-key client, import allowed only in scripts/import-seed.ts, src/actions/invites.ts, src/actions/account.ts, src/app/api/keepalive/route.ts (ESLint no-restricted-imports)",
+        "src/lib/data/repo.ts: interface TeamRepo { listTeamSlugs; loadTeam(slug,{includePrivate}); loadTeamByShareCode(code); saveEvent; deleteEvent; saveSignup; getSignups(teamId); rotateShareCode; appendAudit } with SupabaseRepo and JsonFileRepo; getRepo() selects by DATA_BACKEND=supabase|fs (fs when NEXT_PUBLIC_SUPABASE_URL unset)",
+        "scripts/import-seed.ts: npm run db:import, idempotent on stable ids, generates a random share code and prints it once",
+        "src/app/api/keepalive/route.ts: token-guarded select for the offseason cron"
       ],
       "acceptance": [
-        "With DATABASE_URL unset, every existing page renders identically (snapshot the HTML of /team/tottenham-fall-2026 and /t/<code> before and after).",
-        "With DATABASE_URL set to a local Postgres (docker or Neon branch), npm run db:import then the same pages render identically from the database.",
-        "Unit tests cover the fs repo and a contract test runs against both implementations for loadTeam and saveEvent.",
-        "Private fields (guardian phone/email, DOB, medical, coachNotes) live only in tables never selected by the public projection; a test asserts JSON.stringify(getPublicTeam(...)) matches neither /@/ nor /\\(\\d{3}\\)/.",
-        "netlify.toml build command is npm ci && npm run build; drizzle migrations are committed and applied by npm run db:migrate."
+        "With NEXT_PUBLIC_SUPABASE_URL unset, every existing page renders identically (HTML snapshot of /team/tottenham-fall-2026 and /t/<code> before and after).",
+        "Against the local Supabase stack, npm run db:import then the same pages render identically from the database.",
+        "The contract suite passes for JsonFileRepo and SupabaseRepo.",
+        "pgTAP: every public table has RLS enabled; anon is denied on guardians and player_private; public_team output contains no email, phone, DOB, or full child surname; a test greps the built client chunks for the secret key prefix and finds none.",
+        "netlify.toml build command unchanged (npm ci && checks && build); migrations are applied by supabase db push from CI on the deploy branch."
       ]
     },
     {
       "id": "WP02",
-      "title": "Identity: coach and admin sessions",
+      "title": "Identity: Supabase Auth, profiles, memberships, requireRole",
       "estimate": 5,
       "dependsOn": [
         "WP01"
       ],
-      "goal": "Per-person identity for coaches and admins with no passwords: email code or link sign-in, admin-sent coach invites, server-side revocable sessions, role checks in one helper, and a legacy COACH_PASSCODE shim so the current coaches keep working during migration.",
+      "goal": "Per-person identity with Supabase email OTP / magic link (no passwords). One profiles row per auth user created by trigger; org_memberships and team_memberships with roles org_admin, head_coach, assistant_coach, team_parent; a single requireRole guard backed by has_team_role; Team.coaches[] replaced by memberships; a legacy COACH_PASSCODE shim so current coaches keep working during migration.",
       "owns": [
         "src/lib/auth/**",
         "src/lib/auth.ts",
         "src/proxy.ts",
         "src/app/login/**",
-        "src/app/i/**",
         "src/app/api/auth/**",
         "src/app/api/login/**",
         "src/app/api/logout/**",
-        "src/lib/mail.ts",
-        "src/app/team/[slug]/layout.tsx"
+        "src/app/team/[slug]/layout.tsx",
+        "supabase/migrations/0003_profiles.sql"
       ],
       "exports": [
-        "src/lib/auth/session.ts: getSession() -> { user, memberships } | null (per-request cached)",
-        "src/lib/auth/session.ts: requireRole(teamId, 'coach'|'admin') -> Actor; throws notFound() on failure (no 403, no enumeration)",
-        "src/lib/auth/tokens.ts: createToken(kind, {email, teamId, householdId, role, ttl}) and consumeToken(kind, raw) storing only sha256 hashes",
-        "src/lib/mail.ts: sendMail({to, subject, text}) via Resend when RESEND_API_KEY is set, console in dev",
-        "src/proxy.ts: coarse check only (session cookie or legacy cookie exists) for /team/*, /admin/*, /api/ai/*",
-        "src/lib/auth/legacy.ts: passcode shim producing a synthetic coach actor flagged kind: 'legacy'"
+        "src/lib/auth/session.ts: getViewer() -> { profile, orgMemberships, teamMemberships, households } | null, per-request cached",
+        "src/lib/auth/session.ts: requireRole(teamId, 'org_admin' | TeamRole | 'any_coach') -> Actor; calls rpc has_team_role; throws notFound() on failure (no 403, no enumeration)",
+        "src/lib/auth/legacy.ts: passcode shim producing a synthetic head_coach actor flagged kind: 'legacy' while COACH_PASSCODE is set",
+        "src/proxy.ts: Node runtime; matcher /team/*, /admin/*, /me/*, /api/ai/*; auth.getClaims(); redirect to /login?next= (safeNext); refreshed cookies; Cache-Control private, no-store",
+        "src/app/login: email -> 6-digit code or link; POST /api/auth/logout revokes the session; 'Sign out everywhere' uses the admin API",
+        "Actor type with label snapshot for audit rows"
       ],
       "acceptance": [
-        "Coach invite: admin creates an invite for an email; the emailed link /i/<token> signs the coach in on first tap, creates user + membership + session, and is single-use with a 7-day expiry.",
-        "Returning coach: /login -> email -> 6-digit code (10-minute expiry, 5 attempts, rate limited per email and IP) -> session cookie gs_session (httpOnly, SameSite=Lax, secure in production, 180-day sliding).",
-        "requireRole is called in getCoachTeam, the team layout, and every /api/ai/* handler; a coach of team A gets a 404 on team B.",
-        "POST /api/auth/logout revokes the server session; 'Sign out everywhere' revokes all of a user's sessions.",
+        "Returning coach: /login -> email -> 6-digit code (link in the same email) -> session cookie; rate limited per email and IP; wrong code and expired code give generic errors.",
+        "Seeded profile with head_coach on team A gets 404 on team B; org_admin passes on both; assistant_coach cannot read player_private medical notes without the toggle permission; team_parent cannot call AI routes.",
+        "Team.coaches[] is removed from the data model and every page renders coaches from memberships.",
         "Legacy shim: with COACH_PASSCODE set, the existing gs_coach cookie still works and audit entries carry actor.kind='legacy'; with it unset, the shim is inert.",
-        "Request-level tests for invite, code login, wrong code, expired token, cross-team access."
+        "Request tests: OTP login, wrong code, cross-team access, logout, sign-out-everywhere; pgTAP matrix for memberships and profiles tables."
+      ]
+    },
+    {
+      "id": "WP02b",
+      "title": "Invites, team switcher, profile page",
+      "estimate": 3,
+      "dependsOn": [
+        "WP02"
+      ],
+      "goal": "The surface area of identity: admin and head-coach invites that sign the invitee in on first tap, a team switcher for people with several teams, and a profile page with sign-out-everywhere and account deletion that keeps audit history readable.",
+      "owns": [
+        "src/actions/invites.ts",
+        "src/actions/account.ts",
+        "src/app/i/**",
+        "src/app/me/**",
+        "src/app/home/**",
+        "src/components/TeamSwitcher.tsx",
+        "src/components/AppShell.tsx"
+      ],
+      "exports": [
+        "src/actions/invites.ts: createInvite(kind, teamId?, email) [org_admin any kind; head_coach -> assistant_coach | team_parent on own team], acceptInvite(token), revokeInvite; tokens hashed, single-use, 7-day, email-bound",
+        "src/app/i/[token]: magic-link landing that creates profile + membership and lands on the invited team",
+        "src/components/TeamSwitcher.tsx: hidden with one team; bottom sheet grouped by season with role per row at two or more; /home grid",
+        "src/app/me: profile fields, display-name preview ('Families see: Coach Alex'), notification prefs, My teams, Sign out everywhere, Delete account",
+        "AppShell takes viewer instead of mode; post-sign-in redirect order next -> gs_last cookie -> sole team -> /home"
+      ],
+      "acceptance": [
+        "head_coach can invite an assistant without an admin; assistant_coach cannot invite; an invite for a different email is refused.",
+        "Accepting on a phone: one tap from the email lands signed in on the team with a two-field welcome form; under a minute end to end.",
+        "Switcher hidden with one membership; with three, the sheet shows 'Tottenham \u00b7 Head coach' and 'Lions T-ball \u00b7 Parent (the Lochs)'.",
+        "Delete account: refused for the sole org_admin; otherwise tombstones the profile, removes memberships, revokes invites, and 'Coach Alex cancelled practice' still reads correctly in audit.",
+        "Request tests for every branch above; Playwright journey for invite acceptance at 400px."
       ]
     },
     {
@@ -169,7 +209,8 @@
         "curl -I on /team/* shows Cache-Control: private, no-store; coach pages export dynamic = 'force-dynamic'.",
         "Game Day client props carry hasMedical: boolean, never the notes; the messages page builds the BCC mailto server-side behind a click.",
         "AI routes: require a coach session, validate sportTemplateId with z.enum, per-feature max_tokens, maxDuration, per-user daily call cap, generic error strings; a test proves pasted text containing 'ignore previous instructions' lands in the user turn only.",
-        "Security headers verified by a test that renders next.config headers()."
+        "Security headers verified by a test that renders next.config headers().",
+        "Rate limits cover /login, /f/*, and the claim flow per IP; OTP resend honors the provider cooldown."
       ]
     },
     {
@@ -215,7 +256,7 @@
       "dependsOn": [
         "WP02"
       ],
-      "goal": "Give each family an identity without an account: a coach-sent family link that sets a household session, plus a claim-by-masked-email fallback. Parents see their own family's details and can act as their household.",
+      "goal": "Give each family an identity without a password: a coach-texted family link that signs the phone in anonymously and binds it to the household, plus an email OTP claim that upgrades the same session to a full profile. A signed-in coach who is a parent elsewhere needs no second sign-in.",
       "owns": [
         "src/app/f/**",
         "src/app/t/[code]/claim/**",
@@ -225,17 +266,18 @@
         "src/app/team/[slug]/roster/**"
       ],
       "exports": [
-        "src/lib/auth/family.ts: getFamilySession(teamId) and requireHousehold(teamId, householdId)",
+        "src/lib/auth/family.ts: getFamilySession(teamId) resolves the household from the signed-in profile (household_members) or the anonymous family session; requireHousehold(teamId, householdId)",
         "src/lib/data/getFamilyTeam.ts: public projection plus the caller's own household (players' full names, own guardians' contacts)",
-        "src/app/f/[token]/route.ts: consumes a family_link token, sets gs_family cookie (365 days), redirects to /t/<code>",
-        "Coach roster row: 'Copy family link' and 'Reset link' actions"
+        "src/app/f/[token]/route.ts: verifies the hash, auth.signInAnonymously(), rpc claim_family_link, redirects to /t/<code>",
+        "src/app/t/[code]/claim: pick player -> masked email on file -> signInWithOtp; updateUser({email}) upgrades an anonymous session in place",
+        "Coach roster row: 'Copy family link' and 'Reset link' (reset deletes the household membership and anonymous user)"
       ],
       "acceptance": [
-        "Coach roster groups players by household and shows Copy family link (absolute URL) and Reset link per household; reset invalidates the old token and existing family sessions.",
-        "Opening a family link on a phone lands on the team page recognised as 'the <label> family' with no form.",
-        "Claim fallback: from /t/<code>, 'This is my family' -> pick player -> masked email on file -> 6-digit code -> household session; families with no email on file see 'Ask Coach <name> for your family link'.",
-        "Family session never grants coach routes; a test proves /team/* still 404s with only gs_family.",
-        "Public roster is unchanged for visitors; a parent sees their own players' full names and contacts with an edit-contacts form that writes only to their household."
+        "Coach roster groups players by household with Copy family link (absolute URL) and Reset link per household.",
+        "Opening a family link on a phone lands on the team page recognised as 'the <label> family' with no form; RLS allows that user to write only its own household's rows (pgTAP).",
+        "Claim fallback: masked email on file -> 6-digit code -> the same session now has a profile; families with no email see 'Ask Coach <name> for your family link'.",
+        "A family session alone still 404s on /team/* (request test); a head coach on team A with a household on team B sees the parent page for B without signing in again.",
+        "Public roster is unchanged for visitors; a parent sees their own players' full names and contacts with an edit form that writes only to their household."
       ]
     },
     {
@@ -298,13 +340,13 @@
     },
     {
       "id": "WP08",
-      "title": "Admin setup: seasons, teams, coaches, wizard save",
+      "title": "Admin: org, seasons, teams, coach management, wizard save",
       "estimate": 4,
       "dependsOn": [
-        "WP02",
+        "WP02b",
         "WP04"
       ],
-      "goal": "An admin sets up a new season or team in the UI, invites coaches, and the AI Season Setup wizard saves its reviewed output through the repository. Remove every 'edit the JSON file' instruction from the product.",
+      "goal": "An org_admin creates seasons and teams in the UI, manages coaches across the org (invite, remove, change role), and the AI Season Setup wizard saves its reviewed output through the repository. Remove every 'edit the JSON file' instruction from the product.",
       "owns": [
         "src/app/admin/**",
         "src/actions/admin.ts",
@@ -313,12 +355,13 @@
         "src/app/team/[slug]/setup/**"
       ],
       "exports": [
-        "src/actions/admin.ts: createSeason, createTeam(from SportTemplate), inviteCoach, removeCoach, archiveTeam; all requireRole('admin')",
-        "src/components/SetupWizard.tsx: Save step writes players, households, guardians (private), events, and gear through the repo with a per-row include/exclude toggle"
+        "src/actions/admin.ts: createOrg (first sign-in with no memberships), createSeason, createTeam(from SportTemplate), archiveTeam, setTeamRole, removeMember; all requireRole('org_admin') except createOrg",
+        "src/app/start: first-admin onboarding (email code -> name your organization)",
+        "src/components/SetupWizard.tsx: Save step writes players, households, guardians (private tables), events, and gear through the repo with a per-row include/exclude toggle"
       ],
       "acceptance": [
         "/admin lists seasons and teams for the org; New team asks for name, sport template, colors, and creates the team with a fresh share code.",
-        "Coach invites are sent from /admin/teams/<id>/coaches and show pending/accepted state.",
+        "Coach list shows role, pending invites, lastSeen; role change is a membership write with an audit row; removing the last head coach warns.",
         "Wizard Save persists reviewed rows; low-confidence rows default to excluded; guardian contacts go to private tables only.",
         "grep finds no 'data/teams' or '.json' strings in src/app or src/components.",
         "A T-ball team created from the tball template renders every screen with inning-based vocabulary."
@@ -398,7 +441,7 @@
         "src/app/privacy/**"
       ],
       "exports": [
-        "docs/MIGRATION.md: steps 1-5 from docs/reviews/04-access-roles.md section 6 with the exact Netlify env changes",
+        "docs/MIGRATION.md: zero-downtime steps: import -> seed admin and coach profiles -> invites -> both coaches signed in -> unset COACH_PASSCODE and PRIVATE_CONTACTS_JSON -> family links to households -> keep-alive cron",
         "/privacy page: what is public, who sees contacts, AI processing, retention, how to opt out of the public roster"
       ],
       "acceptance": [

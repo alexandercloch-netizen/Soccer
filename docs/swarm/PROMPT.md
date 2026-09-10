@@ -10,7 +10,7 @@ Deliver **one pull request** against `main` that takes goodsport.team from a rea
 - **Coaches** edit the practice and game schedule from a phone, see who's bringing snack, take attendance, run Game Day, and message families.
 - **Parents** open a link from a text, see the next event and where to go, and sign up for a snack slot for any game. No passwords for parents, ever.
 
-Everything must remain sport-agnostic (one `SportTemplate` per sport; no `if (sport === …)` in components or prompts) and reusable next season with a different team.
+Identity is a **person with a profile**, not a team credential: one account can be head coach on one team, assistant on another, and a parent on a third. Everything must remain sport-agnostic (one `SportTemplate` per sport; no `if (sport === …)` in components or prompts) and reusable next season with a different team.
 
 ## One branch, one builder at a time
 
@@ -29,26 +29,28 @@ A single active builder removes merge conflicts entirely. Parallelism is spent w
 ```mermaid
 graph TD
   WP00["WP00<br/>Test harness and CI baseline"]
-  WP01["WP01<br/>Database foundation and repository interface"]
-  WP02["WP02<br/>Identity: coach and admin sessions"]
+  WP01["WP01<br/>Supabase foundation: schema, RLS, repository interface, seed import"]
+  WP02["WP02<br/>Identity: Supabase Auth, profiles, memberships, requireRole"]
+  WP02b["WP02b<br/>Invites, team switcher, profile page"]
   WP03["WP03<br/>Security hardening baseline"]
   WP04["WP04<br/>Schedule editing for coaches"]
   WP05["WP05<br/>Households and family links for parents"]
   WP06["WP06<br/>Snack sign-up per game"]
   WP07["WP07<br/>Share the team link"]
-  WP08["WP08<br/>Admin setup: seasons, teams, coaches, wizard save"]
+  WP08["WP08<br/>Admin: org, seasons, teams, coach management, wizard save"]
   WP09["WP09<br/>Calendar feed and team notice"]
   WP10["WP10<br/>UX polish and accessibility pass"]
   WP11["WP11<br/>Migration runbook, privacy notice, docs"]
   WP00 --> WP01
   WP01 --> WP02
+  WP02 --> WP02b
   WP02 --> WP03
   WP02 --> WP04
   WP02 --> WP05
   WP04 --> WP06
   WP05 --> WP06
   WP03 --> WP07
-  WP02 --> WP08
+  WP02b --> WP08
   WP04 --> WP08
   WP04 --> WP09
   WP06 --> WP10
@@ -60,7 +62,7 @@ graph TD
   class WP00,WP01,WP02,WP04,WP06,WP10,WP11 cp;
 ```
 
-Dark nodes are the critical path (WP00 → WP01 → WP02 → WP04 → WP06 → WP10 → WP11). Total size 42 units; the critical path is 27, so with one builder at a time the remaining 15 units of side branches (WP03, WP05, WP07, WP08, WP09) are slotted into the order where their dependencies allow. Cut set: {WP00, WP01, WP02}. Everything depends on them; nothing ships without them.
+Dark nodes are the critical path (WP00 → WP01 → WP02 → WP04 → WP06 → WP10 → WP11). Total size 45 units; the critical path is 27, so with one builder at a time the remaining 18 units of side branches (WP02b, WP03, WP05, WP07, WP08, WP09) are slotted into the order where their dependencies allow. Cut set: {WP00, WP01, WP02}. Everything depends on them; nothing ships without them.
 
 ## Conductor rules
 
@@ -114,35 +116,38 @@ Run the full check suite, write `docs/swarm/PR-DESCRIPTION.md` (summary, Mermaid
 
 Decisions the graph is built on (from `graph.json` → `decisions`):
 
-- **Persistence:** Neon Postgres (Netlify DB) via Drizzle, behind the TeamRepo interface; the JSON file repo stays for local dev, tests, and seeding. Chosen over Netlify Blobs because the identity model (users, sessions, tokens, households, audit) is relational and the PR is meant to be the durable foundation.
-- **Identity:** Coaches/admin: email 6-digit code or link (Resend, console fallback in dev) issuing server-side sessions. Parents: signed family links texted by the coach, plus a claim-by-masked-email fallback. No passwords anywhere. Legacy COACH_PASSCODE stays as a shim until both coaches have signed in.
-- **Snack sign-up:** Generic Signup slots (role: snack) so volunteer sign-ups come free later; one slot per game; parent claim requires a household session; coach can assign/clear anything.
+- **Persistence:** Supabase (Postgres + Auth + Storage) behind the TeamRepo interface. Migrations, RLS policies, and security-definer functions live in supabase/migrations; the JSON file repo stays for unit tests and seeding. Chosen over Neon + Drizzle + homegrown sessions after the scored review in docs/reviews/05-identity-platform.md: a solo maintainer should not own OTP/session code guarding children's contacts, and RLS gives a second enforcement layer that pgTAP can test.
+- **Identity:** Identity is a person, not a team credential. Supabase Auth email OTP / magic link for coaches and admins (no passwords, no SMS). One profiles row per auth user; org_memberships (org_admin) and team_memberships (head_coach | assistant_coach | team_parent). Parents: coach-texted family links create an anonymous auth user bound to a household; email OTP upgrades it to a full profile so one person can be a coach on one team and a parent on another. Legacy COACH_PASSCODE stays as a shim until both current coaches have signed in. Authorization: one SQL role lattice (has_team_role) used by every RLS policy and by the TypeScript requireRole guard.
+- **Snack:** Generic Signup slots (role: snack) so volunteer sign-ups come free later; one slot per game; parent claim requires a household session; coach can assign/clear anything.
 - **Branching:** Single developer, single branch: the swarm builds directly on the deploy branch. Every node must leave the site working (its acceptance includes existing pages rendering identically), builders commit locally, and a node is pushed only after its verifiers pass, so production only ever receives verified commits.
 - **Testing:** docs/TESTING.md is binding. Every acceptance item maps to an automated test in the matching layer; the tests verifier fails a node otherwise.
+- **Parents:** Phone-only families use the family link; no SMS provider. The public parent page stays open by share link; identity is only for writes and private data.
+- **Offseason:** Supabase free tier pauses after 7 idle days. Start on Free with a keep-alive cron (GitHub Actions every 3 days hitting /api/keepalive); move to Pro the month a second org or photo storage arrives.
 
 | Node | Title | Depends on | Size | Owns (top-level) |
 |---|---|---|---|---|
 | WP00 | Test harness and CI baseline | — | 2 | tests, vitest.config.ts, vitest.contract.config.ts |
-| WP01 | Database foundation and repository interface | WP00 | 5 | src/lib/db, src/lib/data/repo.ts, src/lib/data/getTeam.ts |
-| WP02 | Identity: coach and admin sessions | WP01 | 5 | src/lib/auth, src/lib/auth.ts, src/proxy.ts |
+| WP01 | Supabase foundation: schema, RLS, repository interface, seed import | WP00 | 5 | supabase/migrations, supabase/seed.sql, src/lib/supabase |
+| WP02 | Identity: Supabase Auth, profiles, memberships, requireRole | WP01 | 5 | src/lib/auth, src/lib/auth.ts, src/proxy.ts |
+| WP02b | Invites, team switcher, profile page | WP02 | 3 | src/actions/invites.ts, src/actions/account.ts, src/app/i |
 | WP03 | Security hardening baseline | WP02 | 3 | next.config.ts, src/lib/ai, prompts |
 | WP04 | Schedule editing for coaches | WP02 | 5 | src/app/team/[slug]/schedule, src/app/team/[slug]/events, src/actions/events.ts |
 | WP05 | Households and family links for parents | WP02 | 4 | src/app/f, src/app/t/[code]/claim, src/app/api/family |
 | WP06 | Snack sign-up per game | WP04, WP05 | 4 | src/actions/signups.ts, src/lib/signups, src/app/t/[code]/snacks |
 | WP07 | Share the team link | WP03 | 2 | src/app/team/[slug]/share, src/components/ShareTeam.tsx, src/lib/qr.ts |
-| WP08 | Admin setup: seasons, teams, coaches, wizard save | WP02, WP04 | 4 | src/app/admin, src/actions/admin.ts, src/components/SetupWizard.tsx |
+| WP08 | Admin: org, seasons, teams, coach management, wizard save | WP02b, WP04 | 4 | src/app/admin, src/actions/admin.ts, src/components/SetupWizard.tsx |
 | WP09 | Calendar feed and team notice | WP04 | 2 | src/app/t/[code]/calendar.ics, src/lib/ics.ts, src/actions/notice.ts |
 | WP10 | UX polish and accessibility pass | WP06, WP07, WP08, WP09 | 4 | src/app/globals.css, src/components/AppShell.tsx, src/components/ui |
 | WP11 | Migration runbook, privacy notice, docs | WP10 | 2 | docs, README.md, CLAUDE.md |
 
-Build order (topological, ties alphabetical): **WP00 → WP01 → WP02 → WP03 → WP04 → WP05 → WP06 → WP07 → WP08 → WP09 → WP10 → WP11**.
+Build order (topological, ties alphabetical): **WP00 → WP01 → WP02 → WP02b → WP03 → WP04 → WP05 → WP06 → WP07 → WP08 → WP09 → WP10 → WP11**.
 
 Each node's full `goal`, `exports`, and `acceptance` list are in `graph.json`; the builder prompt template in `workflow.js` injects them verbatim.
 
 ## How to run it
 
 1. Stay on the deploy branch. Make sure the working tree is clean and CI is green on the current head.
-2. Set up a Neon database and `RESEND_API_KEY` for the builders to test against, or let WP01/WP02 use the local fallbacks.
+2. Create the Supabase project and the Resend account, and add the environment variables listed in `docs/reviews/05-identity-platform.md` §7 to Netlify and GitHub. Builders use the Supabase local stack (`supabase start`) for tests; the fs repo remains the fallback when `NEXT_PUBLIC_SUPABASE_URL` is unset.
 3. Invoke the Workflow tool with `scriptPath: docs/swarm/workflow.js` and `args: { graph: <contents of graph.json>, branch: "claude/soccer-team-management-site-8kh6n9" }`. To resume after a stop, add `startAt: "<node id>"`.
 4. When the integrator returns, `docs/swarm/PR-DESCRIPTION.md` doubles as the release note; open a PR to `main` from the same branch when you want a review surface, or merge when ready.
 
@@ -151,5 +156,6 @@ Each node's full `goal`, `exports`, and `acceptance` list are in `graph.json`; t
 - `docs/reviews/01-design-ux.md`: top 10 findings, the three feature sketches, the definition of simple.
 - `docs/reviews/02-product-features.md`: feature gap table, persistence comparison, week-1 asks, non-goals.
 - `docs/reviews/03-security.md`: ranked findings, threat model, requirements before parents can write.
-- `docs/reviews/04-access-roles.md`: roles matrix, identity flows, data model, enforcement, migration.
+- `docs/reviews/04-access-roles.md`: the first identity design (superseded on platform and roles by 05, still the source for enforcement placement and migration order).
+- `docs/reviews/05-identity-platform.md`: profiles and memberships for many coaches across many teams, seven-role permissions, onboarding flows, the scored Supabase decision, integration design, and the security re-check. **This is the authority for WP01, WP02, WP02b, WP05, WP08.**
 
